@@ -1,0 +1,177 @@
+"use client";
+
+import { useState, useCallback, useRef } from "react";
+import Link from "next/link";
+import { ObjectivesPanel } from "@/components/objectives/objectives-panel";
+import { ObjectiveDetail } from "@/components/objectives/objective-detail";
+import { TodosPanel } from "@/components/todos/todos-panel";
+import { PushesPanel } from "@/components/pushes/pushes-panel";
+import { PushDetail } from "@/components/pushes/push-detail";
+import type { Database } from "@/types/database";
+
+type Objective = Database["public"]["Tables"]["objectives"]["Row"];
+type Tag = Database["public"]["Tables"]["tags"]["Row"];
+type Todo = Database["public"]["Tables"]["todos"]["Row"];
+type Push = Database["public"]["Tables"]["pushes"]["Row"];
+
+interface FirstPrinciplesClientProps {
+  objectives: Objective[];
+  tags: Tag[];
+  objectiveTagMap: Record<string, number[]>;
+  todos: Todo[];
+  pushes: Push[];
+  pushObjectiveMap: Record<string, string[]>;
+  objectiveNameMap: Record<string, string>;
+}
+
+export function FirstPrinciplesClient({
+  objectives: initialObjectives,
+  tags,
+  objectiveTagMap: initialObjectiveTagMap,
+  todos,
+  pushes: initialPushes,
+  pushObjectiveMap: initialPushObjectiveMap,
+}: FirstPrinciplesClientProps) {
+  const [objectives, setObjectives] = useState(initialObjectives);
+  const [pushes, setPushes] = useState(initialPushes);
+  const [pushObjectiveMap, setPushObjectiveMap] = useState(initialPushObjectiveMap);
+  const [selectedObjectiveId, setSelectedObjectiveId] = useState<string | null>(null);
+  const [selectedPushId, setSelectedPushId] = useState<string | null>(null);
+  const lastClosedRef = useRef<{ id: string; time: number } | null>(null);
+
+  const selectedObjective = objectives.find((o) => o.id === selectedObjectiveId) ?? null;
+  const selectedPush = pushes.find((p) => p.id === selectedPushId) ?? null;
+
+  // Live name map from current objectives state
+  const objectiveNameMap: Record<string, string> = {};
+  for (const obj of objectives) {
+    objectiveNameMap[obj.id] = obj.name;
+  }
+
+  function wasJustClosed(id: string): boolean {
+    if (!lastClosedRef.current) return false;
+    return lastClosedRef.current.id === id && Date.now() - lastClosedRef.current.time < 200;
+  }
+
+  const handleSelectObjective = useCallback((id: string) => {
+    if (wasJustClosed(id)) return;
+    setSelectedPushId(null);
+    setSelectedObjectiveId(id);
+  }, []);
+
+  const handleSelectPush = useCallback((id: string) => {
+    if (wasJustClosed(id)) return;
+    setSelectedObjectiveId(null);
+    setSelectedPushId(id);
+  }, []);
+
+  function handleObjectiveSaved(updated: Partial<Objective> & { id: string }) {
+    setObjectives((prev) =>
+      prev.map((o) => (o.id === updated.id ? { ...o, ...updated } : o))
+    );
+  }
+
+  function handleObjectiveDeleted(id: string) {
+    setObjectives((prev) => prev.filter((o) => o.id !== id));
+    setSelectedObjectiveId(null);
+    // Clean up push-objective links that reference the deleted objective
+    setPushObjectiveMap((prev) => {
+      const updated = { ...prev };
+      for (const pushId of Object.keys(updated)) {
+        updated[pushId] = updated[pushId].filter((oid) => oid !== id);
+      }
+      return updated;
+    });
+  }
+
+  function handlePushSaved(updated: Partial<Push> & { id: string }) {
+    setPushes((prev) =>
+      prev.map((p) => (p.id === updated.id ? { ...p, ...updated } : p))
+    );
+  }
+
+  function handlePushDeleted(id: string) {
+    setPushes((prev) => prev.filter((p) => p.id !== id));
+    setSelectedPushId(null);
+    // Clean up the push-objective map entry
+    setPushObjectiveMap((prev) => {
+      const updated = { ...prev };
+      delete updated[id];
+      return updated;
+    });
+  }
+
+  return (
+    <div className="grid h-full grid-cols-[33%_1fr] gap-1.5 p-1.5">
+      {/* Left column: Objectives (full height) */}
+      <div className="min-h-0 overflow-hidden rounded-lg border bg-card">
+        <ObjectivesPanel
+          objectives={objectives}
+          selectedId={selectedObjectiveId}
+          onObjectivesChange={setObjectives}
+          onSelect={handleSelectObjective}
+        />
+      </div>
+
+      {/* Right column: Todos on top, Pushes on bottom */}
+      <div className="relative grid min-h-0 grid-rows-[1fr_36vh] gap-1.5">
+
+        {/* Todos panel */}
+        <div className="relative min-h-0 overflow-hidden rounded-lg border bg-card">
+          <TodosPanel initialTodos={todos} />
+          <Link
+            href="/first-principles/history"
+            className="absolute right-3 top-1.5 cursor-pointer text-xs text-white/70 transition-colors hover:text-white"
+          >
+            History
+          </Link>
+
+          {/* Push detail overlays the todos panel */}
+          {selectedPushId && (
+            <PushDetail
+              push={selectedPush}
+              open={selectedPushId !== null}
+              onClose={() => {
+                lastClosedRef.current = { id: selectedPushId!, time: Date.now() };
+                setSelectedPushId(null);
+              }}
+              onSaved={handlePushSaved}
+              onDeleted={handlePushDeleted}
+              allObjectives={objectives}
+              linkedObjectiveIds={selectedPushId ? (pushObjectiveMap[selectedPushId] ?? []) : []}
+            />
+          )}
+        </div>
+
+        {/* Pushes panel */}
+        <div className="min-h-0 overflow-hidden rounded-lg border bg-card">
+          <PushesPanel
+            pushes={pushes}
+            selectedId={selectedPushId}
+            onPushesChange={setPushes}
+            onSelect={handleSelectPush}
+            pushObjectiveMap={pushObjectiveMap}
+            objectiveNameMap={objectiveNameMap}
+          />
+        </div>
+
+        {/* Objective detail overlays the entire right column */}
+        {selectedObjectiveId && (
+          <ObjectiveDetail
+            objective={selectedObjective}
+            open={selectedObjectiveId !== null}
+            onClose={() => {
+              lastClosedRef.current = { id: selectedObjectiveId!, time: Date.now() };
+              setSelectedObjectiveId(null);
+            }}
+            onSaved={handleObjectiveSaved}
+            onDeleted={handleObjectiveDeleted}
+            allTags={tags}
+            objectiveTagIds={selectedObjectiveId ? (initialObjectiveTagMap[selectedObjectiveId] ?? []) : []}
+          />
+        )}
+      </div>
+
+    </div>
+  );
+}
