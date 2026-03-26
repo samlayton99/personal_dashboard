@@ -73,7 +73,7 @@ export function PushDistributionChart({ slices }: PushDistributionChartProps) {
             r={r}
             fill="none"
             stroke={seg.color}
-            strokeWidth={14}
+            strokeWidth={22}
             strokeDasharray={`${seg.dashLength} ${circumference - seg.dashLength}`}
             strokeDashoffset={seg.dashOffset}
           />
@@ -86,7 +86,7 @@ export function PushDistributionChart({ slices }: PushDistributionChartProps) {
               y={label.y}
               textAnchor="middle"
               dominantBaseline="central"
-              className="rotate-90 fill-white text-[8px] font-mono"
+              className="rotate-90 fill-white text-[10px] font-mono"
               style={{ transformOrigin: `${label.x}px ${label.y}px` }}
             >
               {Math.round(label.pct)}%
