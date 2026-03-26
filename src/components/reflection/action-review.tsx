@@ -70,14 +70,14 @@ export function ActionReview({
   ).length;
 
   return (
-    <div className="rounded-lg border bg-card">
-      <div className="flex items-center justify-between border-b px-4 py-3">
-        <div>
-          <h2 className="text-sm font-semibold">Review Proposed Actions</h2>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            {acceptedCount} of {actions.length} actions will be saved
-          </p>
-        </div>
+    <div className="overflow-hidden rounded-lg border bg-white shadow-lg">
+      <div className="bg-primary px-4 py-3">
+        <h2 className="text-sm font-semibold text-primary-foreground">
+          Review Proposed Actions
+        </h2>
+        <p className="mt-0.5 text-xs text-primary-foreground/70">
+          {acceptedCount} of {actions.length} actions will be saved
+        </p>
       </div>
 
       <div className="max-h-[55vh] overflow-y-auto p-3">

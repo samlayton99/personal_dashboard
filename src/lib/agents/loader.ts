@@ -78,6 +78,10 @@ export function loadAgentConfig(agentName: string): AgentConfig {
   const defaults = loadDefaults();
   const dir = join(AGENTS_DIR, agentName);
 
+  if (!existsSync(dir)) {
+    throw new Error(`Agent "${agentName}" not found at ${dir}`);
+  }
+
   const config = readYaml(join(dir, "config.yaml"));
   const behavior = readYaml(join(dir, "behavior.yaml"));
   const output = readYaml(join(dir, "output.yaml"));

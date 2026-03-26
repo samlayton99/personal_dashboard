@@ -1,0 +1,8 @@
+# ===========================================================
+# Todo Parser Agent - Config
+# ===========================================================
+
+name: todo-parser
+description: >
+  Parses freeform text listing todos into structured individual
+  items with descriptions and panel assignments (now/in_progress/future).

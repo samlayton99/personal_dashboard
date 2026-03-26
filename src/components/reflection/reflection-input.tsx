@@ -8,7 +8,7 @@ import { getLocalDateString } from "@/lib/utils/lock";
 
 interface ReflectionInputProps {
   lastReflectionDate: string | null;
-  onReflectionCreated: (reflectionId: string, date: string) => void;
+  onReflectionCreated: (reflectionId: string, date: string, todoText: string) => void;
   error: string | null;
 }
 
@@ -18,6 +18,7 @@ export function ReflectionInput({
   error,
 }: ReflectionInputProps) {
   const [text, setText] = useState("");
+  const [todoText, setTodoText] = useState("");
   const [isPending, startTransition] = useTransition();
 
   const today = getLocalDateString();
@@ -35,38 +36,59 @@ export function ReflectionInput({
         date: today,
         covers_since: coversSince,
       });
-      onReflectionCreated(id, today);
+      onReflectionCreated(id, today, todoText);
     });
   }
 
   return (
-    <div className="rounded-lg border bg-card">
-      <div className="border-b px-4 py-3">
-        <h2 className="text-sm font-semibold">
-          {hasMultiDayGap
-            ? `What have you been up to since ${formatDate(coversSince)}?`
-            : "What did you do today?"}
-        </h2>
-        <p className="mt-0.5 text-xs text-muted-foreground">
-          Reflect on your actions and progress. Even a sentence or two is fine.
-        </p>
+    <div className="flex flex-col gap-4">
+      {/* Reflection card */}
+      <div className="overflow-hidden rounded-lg border bg-white shadow-lg">
+        <div className="bg-primary px-4 py-3">
+          <h2 className="text-sm font-semibold text-primary-foreground">
+            {hasMultiDayGap
+              ? `What have you been up to since ${formatDate(coversSince)}?`
+              : "What did you do today?"}
+          </h2>
+          <p className="mt-0.5 text-xs text-primary-foreground/70">
+            Reflect on your actions and progress. Even a sentence or two is fine.
+          </p>
+        </div>
+        <div className="p-4">
+          <Textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder="Today I worked on..."
+            className="min-h-[140px] resize-none border-0 bg-transparent p-0 text-sm shadow-none focus-visible:ring-0"
+            autoFocus
+          />
+        </div>
       </div>
 
-      <div className="p-4">
-        <Textarea
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder="Today I worked on..."
-          className="min-h-[140px] resize-none border-0 bg-transparent p-0 text-sm shadow-none focus-visible:ring-0"
-          autoFocus
-        />
+      {/* Todo card */}
+      <div className="overflow-hidden rounded-lg border bg-white shadow-lg">
+        <div className="bg-primary px-4 py-3">
+          <h2 className="text-sm font-semibold text-primary-foreground">
+            Todos to add
+          </h2>
+          <p className="mt-0.5 text-xs text-primary-foreground/70">
+            Optional -- list any tasks you want to add to your board
+          </p>
+        </div>
+        <div className="p-4">
+          <Textarea
+            value={todoText}
+            onChange={(e) => setTodoText(e.target.value)}
+            placeholder="Call dentist, finish report by Friday, research X next month..."
+            className="min-h-[80px] resize-none border-0 bg-transparent p-0 text-sm shadow-none focus-visible:ring-0"
+          />
+        </div>
       </div>
 
-      <div className="flex items-center justify-between border-t px-4 py-3">
+      {/* Footer */}
+      <div className="flex items-center justify-between">
         <div>
-          {error && (
-            <p className="text-xs text-red-600">{error}</p>
-          )}
+          {error && <p className="text-xs text-red-600">{error}</p>}
         </div>
         <Button
           onClick={handleSubmit}

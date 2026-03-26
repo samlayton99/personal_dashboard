@@ -1,0 +1,21 @@
+# ===========================================================
+# Todo Parser Agent - Output Format
+# ===========================================================
+
+format: json_array
+
+item_schema:
+  description:
+    type: string
+    required: true
+
+  panel:
+    type: string
+    required: true
+    enum: [now, in_progress, future]
+    default: now
+
+  due_date:
+    type: string
+    required: false
+    default: null

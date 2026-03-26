@@ -39,28 +39,63 @@ export function LockOverlay({
   const [reflectionDate, setReflectionDate] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isConfirming, setIsConfirming] = useState(false);
+  const [todosCreatedCount, setTodosCreatedCount] = useState(0);
+  const [processingTodos, setProcessingTodos] = useState(false);
 
-  async function handleReflectionCreated(id: string, date: string) {
+  async function handleReflectionCreated(id: string, date: string, todoText: string) {
     setReflectionId(id);
     setReflectionDate(date);
     setPhase("generating");
     setError(null);
 
+    const hasTodos = todoText.trim().length > 0;
+    setProcessingTodos(hasTodos);
+
     try {
-      const res = await fetch("/api/agents/nightly-reflection", {
+      // Build parallel requests
+      const reflectionPromise = fetch("/api/agents/nightly-reflection", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ reflection_id: id, date }),
       });
 
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({ error: "Unknown error" }));
-        throw new Error(body.error ?? `Request failed: ${res.status}`);
+      const promises: Promise<Response>[] = [reflectionPromise];
+
+      if (hasTodos) {
+        promises.push(
+          fetch("/api/agents/todo-parser", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ todo_text: todoText.trim(), date }),
+          })
+        );
       }
 
-      const data = await res.json();
+      const responses = await Promise.all(promises);
+
+      // Handle reflection response
+      const reflectionRes = responses[0];
+      if (!reflectionRes.ok) {
+        const body = await reflectionRes.json().catch(() => ({ error: "Unknown error" }));
+        throw new Error(body.error ?? `Request failed: ${reflectionRes.status}`);
+      }
+      const reflectionData = await reflectionRes.json();
+
+      // Handle todo response (silent failure)
+      if (hasTodos && responses[1]) {
+        try {
+          const todoRes = responses[1];
+          if (todoRes.ok) {
+            const todoData = await todoRes.json();
+            setTodosCreatedCount(todoData.todos?.length ?? 0);
+          }
+        } catch {
+          // Don't block reflection flow for todo failures
+        }
+      }
+
       setActions(
-        data.actions.map((a: GeneratedAction) => ({ ...a, status: "accepted" as const }))
+        reflectionData.actions.map((a: GeneratedAction) => ({ ...a, status: "accepted" as const }))
       );
       setPhase("review");
     } catch (err) {
@@ -108,23 +143,39 @@ export function LockOverlay({
           )}
 
           {phase === "generating" && (
-            <div className="flex flex-col items-center gap-3 rounded-lg border bg-card p-8">
-              <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-              <p className="text-sm text-muted-foreground">
-                Generating actions from your reflection...
-              </p>
+            <div className="overflow-hidden rounded-lg border bg-white shadow-lg">
+              <div className="bg-primary px-4 py-3">
+                <h2 className="text-sm font-semibold text-primary-foreground">
+                  Processing
+                </h2>
+              </div>
+              <div className="flex flex-col items-center gap-3 p-8">
+                <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                <p className="text-sm text-muted-foreground">
+                  {processingTodos
+                    ? "Generating actions and processing todos..."
+                    : "Generating actions from your reflection..."}
+                </p>
+              </div>
             </div>
           )}
 
           {phase === "review" && (
-            <ActionReview
-              actions={actions}
-              activePushes={activePushes}
-              activeObjectives={activeObjectives}
-              onConfirm={handleConfirm}
-              isConfirming={isConfirming}
-              error={error}
-            />
+            <div className="flex flex-col gap-3">
+              {todosCreatedCount > 0 && (
+                <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-2.5 text-xs text-green-700">
+                  {todosCreatedCount} todo{todosCreatedCount !== 1 ? "s" : ""} added to your board.
+                </div>
+              )}
+              <ActionReview
+                actions={actions}
+                activePushes={activePushes}
+                activeObjectives={activeObjectives}
+                onConfirm={handleConfirm}
+                isConfirming={isConfirming}
+                error={error}
+              />
+            </div>
           )}
         </div>
       </div>

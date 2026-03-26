@@ -1,0 +1,11 @@
+# ===========================================================
+# Todo Parser Agent - Context
+# ===========================================================
+
+todo_text:
+  source: user_input
+  description: Freeform text from the user listing todos to add
+
+current_date:
+  source: system
+  description: Today's date for relative date parsing (e.g. "by friday")
