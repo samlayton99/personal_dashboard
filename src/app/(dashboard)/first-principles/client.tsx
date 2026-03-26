@@ -13,18 +13,13 @@ import { ActionDetailDialog } from "@/components/actions/action-detail-dialog";
 import { useRealtime } from "@/lib/supabase/use-realtime";
 import type { Database } from "@/types/database";
 import type { FeaturedAction } from "@/types/featured-actions";
+import type { PushActionSlice } from "@/components/pushes/push-distribution-chart";
 
 type Objective = Database["public"]["Tables"]["objectives"]["Row"];
 type Tag = Database["public"]["Tables"]["tags"]["Row"];
 type Todo = Database["public"]["Tables"]["todos"]["Row"];
 type Push = Database["public"]["Tables"]["pushes"]["Row"];
 type SystemState = Database["public"]["Tables"]["system_state"]["Row"];
-
-interface ScoreboardData {
-  streak: number;
-  actionsThisWeek: number;
-  actionsThisMonth: number;
-}
 
 interface FirstPrinciplesClientProps {
   objectives: Objective[];
@@ -35,7 +30,7 @@ interface FirstPrinciplesClientProps {
   pushObjectiveMap: Record<string, string[]>;
   objectiveNameMap: Record<string, string>;
   systemState: SystemState | null;
-  scoreboardData: ScoreboardData;
+  pushActionDistribution: PushActionSlice[];
   objectiveFeaturedActions: Record<string, FeaturedAction[]>;
   pushFeaturedActions: Record<string, FeaturedAction[]>;
 }
@@ -48,7 +43,7 @@ export function FirstPrinciplesClient({
   pushes: initialPushes,
   pushObjectiveMap: initialPushObjectiveMap,
   systemState,
-  scoreboardData,
+  pushActionDistribution,
   objectiveFeaturedActions,
   pushFeaturedActions,
 }: FirstPrinciplesClientProps) {
@@ -219,7 +214,7 @@ export function FirstPrinciplesClient({
             onSelect={handleSelectPush}
             pushObjectiveMap={pushObjectiveMap}
             objectiveNameMap={objectiveNameMap}
-            scoreboardData={scoreboardData}
+            pushActionDistribution={pushActionDistribution}
             featuredActions={pushFeaturedActions}
             onFeaturedActionClick={setSelectedFeaturedAction}
           />

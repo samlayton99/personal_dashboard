@@ -1,19 +1,13 @@
 "use client";
 
 import { useRef, useTransition } from "react";
-import { Scoreboard } from "./scoreboard";
+import { PushDistributionChart, type PushActionSlice } from "./push-distribution-chart";
 import { PushTile } from "./push-tile";
 import { createPush } from "@/app/(dashboard)/first-principles/actions";
 import type { Database } from "@/types/database";
 import type { FeaturedAction } from "@/types/featured-actions";
 
 type Push = Database["public"]["Tables"]["pushes"]["Row"];
-
-interface ScoreboardData {
-  streak: number;
-  actionsThisWeek: number;
-  actionsThisMonth: number;
-}
 
 interface PushesPanelProps {
   pushes: Push[];
@@ -22,7 +16,7 @@ interface PushesPanelProps {
   onSelect: (id: string) => void;
   pushObjectiveMap: Record<string, string[]>;
   objectiveNameMap: Record<string, string>;
-  scoreboardData: ScoreboardData;
+  pushActionDistribution: PushActionSlice[];
   featuredActions?: Record<string, FeaturedAction[]>;
   onFeaturedActionClick?: (action: FeaturedAction) => void;
 }
@@ -34,7 +28,7 @@ export function PushesPanel({
   onSelect,
   pushObjectiveMap,
   objectiveNameMap,
-  scoreboardData,
+  pushActionDistribution,
   featuredActions = {},
   onFeaturedActionClick,
 }: PushesPanelProps) {
@@ -92,11 +86,7 @@ export function PushesPanel({
       </div>
       <div className="min-h-0 flex-1 p-2">
         <div className="grid h-full grid-cols-3 grid-rows-2 gap-2">
-          <Scoreboard
-            streak={scoreboardData.streak}
-            actionsThisWeek={scoreboardData.actionsThisWeek}
-            actionsThisMonth={scoreboardData.actionsThisMonth}
-          />
+          <PushDistributionChart slices={pushActionDistribution} />
 
           {activePushes.map((push) => (
             <PushTile

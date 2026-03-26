@@ -1,6 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
 import { getSystemState } from "@/lib/supabase/cached-queries";
-import { startOfWeek, startOfMonth } from "@/lib/utils/dates";
 import { computeFeaturedActionScore } from "@/lib/utils/scoring";
 import { recomputeObjectiveMetrics } from "./actions";
 import { FirstPrinciplesClient } from "./client";
@@ -24,8 +23,6 @@ export default async function FirstPrinciplesPage() {
     pushesRes,
     pushObjLinksRes,
     reflectionsRes,
-    actionsWeekRes,
-    actionsMonthRes,
     recentActionsRes,
     actionObjLinksRes,
     actionPushLinksRes,
@@ -57,16 +54,6 @@ export default async function FirstPrinciplesPage() {
       .limit(90),
     supabase
       .from("actions")
-      .select("id")
-      .in("status", ["accepted", "edited"])
-      .gte("created_at", startOfWeek().toISOString()),
-    supabase
-      .from("actions")
-      .select("id")
-      .in("status", ["accepted", "edited"])
-      .gte("created_at", startOfMonth().toISOString()),
-    supabase
-      .from("actions")
       .select("*")
       .in("status", ["accepted", "edited"])
       .gte("created_at", ninetyDaysAgo.toISOString()),
@@ -81,37 +68,31 @@ export default async function FirstPrinciplesPage() {
   const pushes = pushesRes.data ?? [];
   const pushObjLinks = pushObjLinksRes.data ?? [];
 
-  // Compute reflection streak
-  const reflectionDates = (reflectionsRes.data ?? []).map((r) => r.date);
-  let streak = 0;
-  if (reflectionDates.length > 0) {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    // Start checking from today (or yesterday if today's reflection hasn't happened yet)
-    const checkDate = new Date(today);
-    // If the most recent reflection is today, start from today; otherwise start from yesterday
-    const mostRecent = reflectionDates[0];
-    const todayStr = today.toISOString().split("T")[0];
-    if (mostRecent !== todayStr) {
-      // Check if yesterday matches
-      checkDate.setDate(checkDate.getDate() - 1);
-    }
-    for (const date of reflectionDates) {
-      const expected = checkDate.toISOString().split("T")[0];
-      if (date === expected) {
-        streak++;
-        checkDate.setDate(checkDate.getDate() - 1);
-      } else {
-        break;
-      }
+  // Compute per-push action distribution for last 3 weeks
+  const recentActions = recentActionsRes.data ?? [];
+  const actionPushLinks = actionPushLinksRes.data ?? [];
+
+  const twentyOneDaysAgo = new Date();
+  twentyOneDaysAgo.setDate(twentyOneDaysAgo.getDate() - 21);
+  const threeWeekActionIds = new Set(
+    recentActions
+      .filter((a) => new Date(a.created_at) >= twentyOneDaysAgo)
+      .map((a) => a.id)
+  );
+
+  const activePushIds = new Set(pushes.map((p) => p.id));
+  const pushActionCounts: Record<string, number> = {};
+  for (const link of actionPushLinks) {
+    if (threeWeekActionIds.has(link.action_id) && activePushIds.has(link.push_id)) {
+      pushActionCounts[link.push_id] = (pushActionCounts[link.push_id] ?? 0) + 1;
     }
   }
 
-  const scoreboardData = {
-    streak,
-    actionsThisWeek: actionsWeekRes.data?.length ?? 0,
-    actionsThisMonth: actionsMonthRes.data?.length ?? 0,
-  };
+  const pushActionDistribution = pushes.map((p) => ({
+    pushId: p.id,
+    pushName: p.name,
+    actionCount: pushActionCounts[p.id] ?? 0,
+  }));
 
   // Build lookup maps
   const objectiveTagMap: Record<string, number[]> = {};
@@ -137,9 +118,7 @@ export default async function FirstPrinciplesPage() {
   }
 
   // Compute featured actions per objective and push
-  const recentActions = recentActionsRes.data ?? [];
   const actionObjLinks = actionObjLinksRes.data ?? [];
-  const actionPushLinks = actionPushLinksRes.data ?? [];
 
   // Build action -> linked IDs maps
   const actionToObjIds: Record<string, string[]> = {};
@@ -211,7 +190,7 @@ export default async function FirstPrinciplesPage() {
       pushObjectiveMap={pushObjectiveMap}
       objectiveNameMap={objectiveNameMap}
       systemState={systemState ?? null}
-      scoreboardData={scoreboardData}
+      pushActionDistribution={pushActionDistribution}
       objectiveFeaturedActions={objectiveFeaturedActions}
       pushFeaturedActions={pushFeaturedActions}
     />
