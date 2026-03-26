@@ -1,14 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { loadAgentConfig } from "@/lib/agents/loader";
 import { callLLM } from "@/lib/agents/llm";
 import {
   buildNightlyReflectionPrompt,
   parseActionProposals,
   type NightlyReflectionContext,
-} from "@/lib/agents/nightly-reflection";
+} from "@/lib/agents/nightly-reflection/prompt-builder";
 
 export async function POST(req: NextRequest) {
   try {
+    const config = loadAgentConfig("nightly-reflection");
     const body = await req.json();
     const { reflection_id, date } = body as {
       reflection_id: string;
@@ -108,20 +110,24 @@ export async function POST(req: NextRequest) {
     };
 
     // Call LLM
-    const { system, user } = buildNightlyReflectionPrompt(context);
-    const llmResponse = await callLLM(system, user);
+    const { system, user } = buildNightlyReflectionPrompt(config.system_prompt, context);
+    const llmResponse = await callLLM(system, user, config.model);
 
-    // Parse response
+    // Parse response with retry from config
     let proposals;
     try {
       proposals = parseActionProposals(llmResponse);
     } catch {
-      // Retry once on parse failure
-      const retryResponse = await callLLM(
-        system,
-        user + "\n\nIMPORTANT: Respond with ONLY a valid JSON array. No markdown."
-      );
-      proposals = parseActionProposals(retryResponse);
+      if (config.retry.parse_retries > 0) {
+        const retryResponse = await callLLM(
+          system,
+          user + config.retry.retry_suffix,
+          config.model
+        );
+        proposals = parseActionProposals(retryResponse);
+      } else {
+        throw new Error("Failed to parse LLM response as valid actions");
+      }
     }
 
     // Filter push_ids and objective_ids to only include valid active ones
@@ -189,15 +195,15 @@ export async function POST(req: NextRequest) {
 
       // Insert event
       await supabase.from("events").insert({
-        agent_name: "nightly-reflection",
-        event_type: "action_proposed",
+        agent_name: config.name,
+        event_type: config.behavior.event_type as string ?? "action_proposed",
         payload: {
           summary: proposal.description,
           action_id: action.id,
           reflection_id,
         },
-        status: "pending_approval",
-        requires_approval: true,
+        status: (config.behavior.event_status as "pending_approval") ?? "pending_approval",
+        requires_approval: config.event.requires_approval,
       });
 
       createdActions.push({

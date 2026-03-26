@@ -1,0 +1,16 @@
+# ===========================================================
+# Nightly Reflection Agent - Config
+# ===========================================================
+
+name: nightly-reflection
+description: >
+  Analyzes the daily reflection alongside completed todos,
+  recent actions, and active pushes and objectives. Synthesizes
+  into concrete actions that the user took that day and attempts 
+  to map back to pushes and objectives.
+
+# Model overrides (uncomment to override defaults.yaml)
+# model:
+#   claude_model: claude-sonnet-4-20250514
+#   max_tokens: 2048
+#   temperature: 0.5

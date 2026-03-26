@@ -1,3 +1,5 @@
+import type { ModelConfig } from "./loader";
+
 type LLMProvider = "claude" | "openai";
 
 function getProvider(): LLMProvider {
@@ -8,16 +10,30 @@ function getProvider(): LLMProvider {
   return provider;
 }
 
-export async function callLLM(system: string, user: string): Promise<string> {
-  const provider = getProvider();
+export async function callLLM(
+  system: string,
+  user: string,
+  model?: ModelConfig
+): Promise<string> {
+  const provider = model?.provider ?? getProvider();
 
   if (provider === "claude") {
-    return callClaude(system, user);
+    return callClaude(system, user, {
+      model: model?.claude_model ?? "claude-sonnet-4-20250514",
+      max_tokens: model?.max_tokens ?? 2048,
+    });
   }
-  return callOpenAI(system, user);
+  return callOpenAI(system, user, {
+    model: model?.openai_model ?? "gpt-4o",
+    max_tokens: model?.max_tokens ?? 2048,
+  });
 }
 
-async function callClaude(system: string, user: string): Promise<string> {
+async function callClaude(
+  system: string,
+  user: string,
+  opts: { model: string; max_tokens: number }
+): Promise<string> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not set");
 
@@ -29,8 +45,8 @@ async function callClaude(system: string, user: string): Promise<string> {
       "anthropic-version": "2023-06-01",
     },
     body: JSON.stringify({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 2048,
+      model: opts.model,
+      max_tokens: opts.max_tokens,
       system,
       messages: [{ role: "user", content: user }],
     }),
@@ -49,7 +65,11 @@ async function callClaude(system: string, user: string): Promise<string> {
   return textBlock.text;
 }
 
-async function callOpenAI(system: string, user: string): Promise<string> {
+async function callOpenAI(
+  system: string,
+  user: string,
+  opts: { model: string; max_tokens: number }
+): Promise<string> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) throw new Error("OPENAI_API_KEY is not set");
 
@@ -60,8 +80,8 @@ async function callOpenAI(system: string, user: string): Promise<string> {
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: "gpt-4o",
-      max_tokens: 2048,
+      model: opts.model,
+      max_tokens: opts.max_tokens,
       messages: [
         { role: "system", content: system },
         { role: "user", content: user },

@@ -1,0 +1,47 @@
+# ===========================================================
+# Nightly Reflection Agent - Context
+#
+# Documents what data the agent receives from Supabase.
+# NOTE: Changing these values documents intent but does NOT
+# auto-change the queries. Update the route code to match.
+# ===========================================================
+
+completed_todos:
+  table: todos
+  select: "description, push_id"
+  filters:
+    is_completed: true
+  date_filter:
+    column: date_completed
+    range: today
+
+recent_actions:
+  table: actions
+  select: "description, needle_score, created_at"
+  filters:
+    status:
+      in: [accepted, edited]
+  order_by: { column: created_at, ascending: false }
+  limit: 35
+
+active_pushes:
+  table: pushes
+  select: "id, name, description"
+  filters:
+    status: active
+
+active_objectives:
+  table: objectives
+  select: "id, name, description"
+  filters:
+    status: active
+
+recent_summaries:
+  table: summaries
+  select: "type, content"
+  order_by: { column: created_at, ascending: false }
+  limit: 4
+
+push_objective_links:
+  table: push_objective_links
+  select: "push_id, objective_id"

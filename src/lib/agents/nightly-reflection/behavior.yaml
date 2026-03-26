@@ -1,0 +1,10 @@
+# ===========================================================
+# Nightly Reflection Agent - Behavior
+#
+# Controls how the agent acts and what it produces.
+# ===========================================================
+
+max_actions: 5
+infer_objectives_from_pushes: true   # if no objectives linked, look up via push_objective_links
+event_type: action_proposed
+event_status: pending_approval

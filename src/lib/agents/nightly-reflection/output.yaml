@@ -1,0 +1,30 @@
+# ===========================================================
+# Nightly Reflection Agent - Output Format
+#
+# Defines the expected response structure from the LLM
+# and how to validate each field.
+# ===========================================================
+
+format: json_array
+
+item_schema:
+  description:
+    type: string
+    required: true
+
+  push_ids:
+    type: string_array
+    required: false
+    default: []
+
+  objective_ids:
+    type: string_array
+    required: false
+    default: []
+
+  needle_score:
+    type: number
+    required: false
+    default: 50
+    min: 0
+    max: 100

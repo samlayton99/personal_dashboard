@@ -11,7 +11,8 @@ set -e
 # ============================================================
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-ENV_FILE="$SCRIPT_DIR/.env.local"
+PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+ENV_FILE="$PROJECT_DIR/.env.local"
 
 if [ ! -f "$ENV_FILE" ]; then
   echo "Error: .env.local not found at $ENV_FILE"
@@ -42,7 +43,7 @@ ENV_VARS=(
   "ALLOWED_EMAIL"
 )
 
-cd "$SCRIPT_DIR"
+cd "$PROJECT_DIR"
 
 # Install Vercel CLI locally if not present
 if ! npx --no vercel --version &>/dev/null 2>&1; then

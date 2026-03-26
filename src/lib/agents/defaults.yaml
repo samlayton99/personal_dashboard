@@ -1,0 +1,19 @@
+# ===========================================================
+# Agent Defaults
+# Shared settings inherited by all agents.
+# Override any field in an agent's own YAML file.
+# ===========================================================
+
+model:
+  provider: claude                       # "claude" | "openai"
+  claude_model: claude-sonnet-4-20250514
+  openai_model: gpt-4o
+  max_tokens: 2048
+  temperature: 0.7
+
+retry:
+  parse_retries: 1                       # how many times to retry on malformed LLM output
+  retry_suffix: "\n\nIMPORTANT: Respond with ONLY valid JSON. No markdown."
+
+event:
+  requires_approval: true                # whether agent actions need user review

@@ -18,30 +18,13 @@ export interface NightlyReflectionContext {
   recentSummaries: Array<{ type: string; content: string }>;
 }
 
-export function buildNightlyReflectionPrompt(context: NightlyReflectionContext): {
+export function buildNightlyReflectionPrompt(
+  systemPrompt: string,
+  context: NightlyReflectionContext
+): {
   system: string;
   user: string;
 } {
-  const system = `You are an accountability coach for a personal productivity system called First Principles Dashboard. Your role is to analyze the user's daily reflection and propose concrete, actionable next steps that advance their objectives.
-
-Rules:
-- Return 1-5 actions. Each action should be specific and completable within 1-3 days.
-- Link each action to relevant push IDs and objective IDs from the provided lists.
-- Assign a needle_score (0-100) indicating how much this action moves the needle on linked objectives. 80+ = high impact, 50-79 = moderate, below 50 = maintenance/incremental.
-- Focus on actions the user can take tomorrow or this week.
-- Don't repeat recent actions unless they need continuation.
-- Be direct and specific. No filler or motivation speech.
-
-Respond with ONLY a JSON array of action objects. No markdown, no explanation. Example:
-[
-  {
-    "description": "Draft the investor memo for Q2 fundraise",
-    "push_ids": ["push_123"],
-    "objective_ids": ["objective_456"],
-    "needle_score": 85
-  }
-]`;
-
   const parts: string[] = [];
 
   parts.push(`## User's Reflection\n${context.reflectionText}`);
@@ -85,7 +68,7 @@ Respond with ONLY a JSON array of action objects. No markdown, no explanation. E
     );
   }
 
-  return { system, user: parts.join("\n\n") };
+  return { system: systemPrompt, user: parts.join("\n\n") };
 }
 
 /**
