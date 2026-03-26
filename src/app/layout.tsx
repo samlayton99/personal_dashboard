@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
+import NextTopLoader from "nextjs-toploader";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
 
@@ -29,6 +30,7 @@ export default function RootLayout({
       className={`${inter.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
       <body suppressHydrationWarning className="h-full bg-background text-foreground font-sans">
+        <NextTopLoader color="#2e3a50" height={3} showSpinner={false} shadow={false} />
         <TooltipProvider>{children}</TooltipProvider>
       </body>
     </html>

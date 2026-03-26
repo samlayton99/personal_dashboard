@@ -85,12 +85,12 @@ export function ObjectiveTile({
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1 pt-0.5">
           <div className="text-right">
-            <span className="text-base font-semibold leading-none">{Math.round(objective.current_priority)}%</span>
             <p className="text-[10px] text-muted-foreground">priority</p>
+            <span className="text-base font-semibold leading-none">{Math.round(objective.current_priority)}%</span>
           </div>
           <div className="text-right">
-            <span className="text-base font-semibold leading-none">{Math.round(objective.needle_movement)}%</span>
             <p className="text-[10px] text-muted-foreground">needle</p>
+            <span className="text-base font-semibold leading-none">{Math.round(objective.needle_movement)}%</span>
           </div>
         </div>
       </div>

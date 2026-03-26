@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { getSystemState } from "@/lib/supabase/cached-queries";
 import { startOfWeek, startOfMonth } from "@/lib/utils/dates";
 import { computeFeaturedActionScore } from "@/lib/utils/scoring";
 import { FirstPrinciplesClient } from "./client";
@@ -11,13 +12,13 @@ export default async function FirstPrinciplesPage() {
   ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
 
   const [
+    systemState,
     objectivesRes,
     tagsRes,
     objectiveTagsRes,
     todosRes,
     pushesRes,
     pushObjLinksRes,
-    systemStateRes,
     reflectionsRes,
     actionsWeekRes,
     actionsMonthRes,
@@ -25,6 +26,7 @@ export default async function FirstPrinciplesPage() {
     actionObjLinksRes,
     actionPushLinksRes,
   ] = await Promise.all([
+    getSystemState(),
     supabase
       .from("objectives")
       .select("*")
@@ -43,7 +45,6 @@ export default async function FirstPrinciplesPage() {
       .eq("status", "active")
       .order("sort_order"),
     supabase.from("push_objective_links").select("push_id, objective_id"),
-    supabase.from("system_state").select("*").eq("id", 1).single(),
     supabase
       .from("daily_reflections")
       .select("date")
@@ -74,7 +75,6 @@ export default async function FirstPrinciplesPage() {
   const todos = todosRes.data ?? [];
   const pushes = pushesRes.data ?? [];
   const pushObjLinks = pushObjLinksRes.data ?? [];
-  const systemState = systemStateRes.data;
 
   // Compute reflection streak
   const reflectionDates = (reflectionsRes.data ?? []).map((r) => r.date);
