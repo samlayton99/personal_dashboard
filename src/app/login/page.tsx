@@ -2,13 +2,15 @@
 
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
   const supabase = useMemo(() => createClient(), []);
+  const unauthorized = searchParams.get("error") === "unauthorized";
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -46,6 +48,11 @@ export default function LoginPage() {
         <p className="text-sm text-muted-foreground">
           Sign in to access your dashboard
         </p>
+        {unauthorized && (
+          <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            Access denied. This dashboard is private. Please sign in with an authorized account.
+          </div>
+        )}
         <Button onClick={handleLogin} size="lg">
           Sign in with Google
         </Button>

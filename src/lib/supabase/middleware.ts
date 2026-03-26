@@ -33,6 +33,7 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  // Not logged in — redirect to login (except login page and agent API)
   if (
     !user &&
     !request.nextUrl.pathname.startsWith("/login") &&
@@ -40,6 +41,16 @@ export async function updateSession(request: NextRequest) {
   ) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
+    return NextResponse.redirect(url);
+  }
+
+  // Logged in but wrong user — sign out and redirect to login with error
+  const allowedEmail = process.env.ALLOWED_EMAIL;
+  if (user && allowedEmail && user.email !== allowedEmail) {
+    await supabase.auth.signOut();
+    const url = request.nextUrl.clone();
+    url.pathname = "/login";
+    url.searchParams.set("error", "unauthorized");
     return NextResponse.redirect(url);
   }
 
