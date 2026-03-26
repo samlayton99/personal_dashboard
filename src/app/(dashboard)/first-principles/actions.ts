@@ -374,12 +374,17 @@ export async function createReflection(data: {
     .single();
 
   if (error) {
-    // Handle duplicate date (user already reflected today, maybe in another tab)
+    // Handle duplicate date — update the existing reflection with new text
     if (error.code === "23505") {
       const { data: existing } = await supabase
         .from("daily_reflections")
-        .select("id")
+        .update({
+          raw_text: data.raw_text,
+          covers_since: data.covers_since,
+          is_escape_hatch: data.raw_text.length < 50,
+        })
         .eq("date", data.date)
+        .select("id")
         .single();
       if (existing) return existing.id;
     }
