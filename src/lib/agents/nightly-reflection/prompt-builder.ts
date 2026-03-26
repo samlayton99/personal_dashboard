@@ -1,3 +1,13 @@
+import { readFileSync, existsSync } from "fs";
+import { join } from "path";
+
+const ABOUT_ME_PATH = join(process.cwd(), "src", "lib", "agents", "about-me.md");
+
+function loadAboutMe(): string {
+  if (!existsSync(ABOUT_ME_PATH)) return "";
+  return readFileSync(ABOUT_ME_PATH, "utf-8").trim();
+}
+
 export interface ActionProposal {
   description: string;
   push_ids: string[];
@@ -26,6 +36,11 @@ export function buildNightlyReflectionPrompt(
   user: string;
 } {
   const parts: string[] = [];
+
+  const aboutMe = loadAboutMe();
+  if (aboutMe) {
+    parts.push(`## About the User\n${aboutMe}`);
+  }
 
   parts.push(`## User's Reflection\n${context.reflectionText}`);
 

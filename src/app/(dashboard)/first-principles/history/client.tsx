@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -52,6 +53,7 @@ export function HistoryPageClient({
   pushes: initialPushes,
   actions: initialActions,
 }: HistoryPageClientProps) {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<Tab>("Objectives");
   const [search, setSearch] = useState("");
   const [objectives, setObjectives] = useState(initialObjectives);
@@ -90,12 +92,13 @@ export function HistoryPageClient({
     const idsToDelete = deleteTarget.mode === "single" ? [deleteTarget.id] : deleteTarget.ids;
     setActions((prev) => prev.filter((a) => !idsToDelete.includes(a.id)));
     setDeleteTarget(null);
-    startDeleteTransition(() => {
+    startDeleteTransition(async () => {
       if (idsToDelete.length === 1) {
-        deleteAction(idsToDelete[0]);
+        await deleteAction(idsToDelete[0]);
       } else {
-        deleteActions(idsToDelete);
+        await deleteActions(idsToDelete);
       }
+      router.refresh();
     });
   }
 
