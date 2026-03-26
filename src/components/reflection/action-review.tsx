@@ -76,7 +76,9 @@ export function ActionReview({
           Review Proposed Actions
         </h2>
         <p className="mt-0.5 text-xs text-primary-foreground/70">
-          {acceptedCount} of {actions.length} actions will be saved
+          {actions.length === 0
+            ? "No actions were generated"
+            : `${acceptedCount} of ${actions.length} actions will be saved`}
         </p>
       </div>
 
@@ -100,12 +102,14 @@ export function ActionReview({
         </div>
         <Button
           onClick={() => onConfirm(actions)}
-          disabled={isConfirming || acceptedCount === 0}
+          disabled={isConfirming || (actions.length > 0 && acceptedCount === 0)}
           size="sm"
         >
           {isConfirming
             ? "Saving..."
-            : `Confirm ${acceptedCount} Action${acceptedCount !== 1 ? "s" : ""}`}
+            : actions.length === 0
+              ? "Unlock"
+              : `Confirm ${acceptedCount} Action${acceptedCount !== 1 ? "s" : ""}`}
         </Button>
       </div>
     </div>

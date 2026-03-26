@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useTransition, useCallback } from "react";
+import { useState, useRef, useTransition, useCallback, useEffect } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -23,6 +23,7 @@ import {
   reorderTodos,
 } from "@/app/(dashboard)/first-principles/actions";
 import { useRealtime } from "@/lib/supabase/use-realtime";
+import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
 
 type Todo = Database["public"]["Tables"]["todos"]["Row"];
@@ -34,6 +35,12 @@ interface TodosPanelProps {
 
 export function TodosPanel({ initialTodos }: TodosPanelProps) {
   const [todos, setTodos] = useState(initialTodos);
+
+  // Sync local state when server props change (e.g. after router.refresh())
+  useEffect(() => {
+    setTodos(initialTodos);
+  }, [initialTodos]);
+
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [, startTransition] = useTransition();
   const dragSourcePanel = useRef<Panel | null>(null);
@@ -51,7 +58,28 @@ export function TodosPanel({ initialTodos }: TodosPanelProps) {
 
   useRealtime({
     table: "todos",
-    onPayload: useCallback(() => {}, []),
+    onPayload: useCallback(
+      (payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => {
+        if (payload.eventType === "INSERT") {
+          const newTodo = payload.new as unknown as Todo;
+          setTodos((prev) => {
+            if (prev.some((t) => t.id === newTodo.id)) return prev;
+            return [...prev, newTodo];
+          });
+        } else if (payload.eventType === "UPDATE") {
+          const updated = payload.new as unknown as Todo;
+          setTodos((prev) =>
+            prev.map((t) => (t.id === updated.id ? updated : t))
+          );
+        } else if (payload.eventType === "DELETE") {
+          const deleted = payload.old as unknown as { id: string };
+          if (deleted.id) {
+            setTodos((prev) => prev.filter((t) => t.id !== deleted.id));
+          }
+        }
+      },
+      []
+    ),
   });
 
   function handleToggle(id: string, completed: boolean) {

@@ -10,7 +10,6 @@ import { PushesPanel } from "@/components/pushes/pushes-panel";
 import { PushDetail } from "@/components/pushes/push-detail";
 import { LockOverlay } from "@/components/reflection/lock-overlay";
 import { useRealtime } from "@/lib/supabase/use-realtime";
-import { shouldLock } from "@/lib/utils/lock";
 import type { Database } from "@/types/database";
 
 type Objective = Database["public"]["Tables"]["objectives"]["Row"];
@@ -53,26 +52,21 @@ export function FirstPrinciplesClient({
   const [pushObjectiveMap, setPushObjectiveMap] = useState(initialPushObjectiveMap);
   const [selectedObjectiveId, setSelectedObjectiveId] = useState<string | null>(null);
   const [selectedPushId, setSelectedPushId] = useState<string | null>(null);
+
+  // Sync local state when server props change (e.g. after router.refresh())
+  useEffect(() => { setObjectives(initialObjectives); }, [initialObjectives]);
+  useEffect(() => { setPushes(initialPushes); }, [initialPushes]);
+  useEffect(() => { setPushObjectiveMap(initialPushObjectiveMap); }, [initialPushObjectiveMap]);
   const lastClosedRef = useRef<{ id: string; time: number } | null>(null);
 
   // Lock state
   const [lastReflectionDate, setLastReflectionDate] = useState(
     systemState?.last_reflection_date ?? null
   );
-  const [isLocked, setIsLocked] = useState(() => {
-    if (systemState?.is_locked) return true;
-    return shouldLock(systemState?.last_reflection_date ?? null);
-  });
+  const [isLocked, setIsLocked] = useState(systemState?.is_locked ?? false);
 
-  // Re-check lock every 60 seconds (catches 10 PM crossing while tab is open)
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (!isLocked && shouldLock(lastReflectionDate)) {
-        setIsLocked(true);
-      }
-    }, 60_000);
-    return () => clearInterval(interval);
-  }, [isLocked, lastReflectionDate]);
+  // Lock-checking interval is handled by LockWatcher in the dashboard layout.
+  // This component only reacts to DB changes via realtime subscription below.
 
   // Listen for realtime system_state changes (edge function backup)
   useRealtime({

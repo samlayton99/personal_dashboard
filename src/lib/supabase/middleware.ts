@@ -54,5 +54,26 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  // Lock check: if dashboard is locked, force user to /first-principles
+  const pathname = request.nextUrl.pathname;
+  if (
+    user &&
+    !pathname.startsWith("/first-principles") &&
+    !pathname.startsWith("/login") &&
+    !pathname.startsWith("/api")
+  ) {
+    const { data: systemState } = await supabase
+      .from("system_state")
+      .select("is_locked")
+      .eq("id", 1)
+      .single();
+
+    if (systemState?.is_locked) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/first-principles";
+      return NextResponse.redirect(url);
+    }
+  }
+
   return supabaseResponse;
 }
