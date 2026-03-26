@@ -8,6 +8,12 @@ import type { Database } from "@/types/database";
 
 type Push = Database["public"]["Tables"]["pushes"]["Row"];
 
+interface ScoreboardData {
+  streak: number;
+  actionsThisWeek: number;
+  actionsThisMonth: number;
+}
+
 interface PushesPanelProps {
   pushes: Push[];
   selectedId: string | null;
@@ -15,6 +21,7 @@ interface PushesPanelProps {
   onSelect: (id: string) => void;
   pushObjectiveMap: Record<string, string[]>;
   objectiveNameMap: Record<string, string>;
+  scoreboardData: ScoreboardData;
 }
 
 export function PushesPanel({
@@ -24,6 +31,7 @@ export function PushesPanel({
   onSelect,
   pushObjectiveMap,
   objectiveNameMap,
+  scoreboardData,
 }: PushesPanelProps) {
   const [isPending, startTransition] = useTransition();
   const creatingRef = useRef(false);
@@ -79,7 +87,11 @@ export function PushesPanel({
       </div>
       <div className="min-h-0 flex-1 p-2">
         <div className="grid h-full grid-cols-3 grid-rows-2 gap-2">
-          <Scoreboard streak={0} actionsThisWeek={0} actionsThisMonth={0} />
+          <Scoreboard
+            streak={scoreboardData.streak}
+            actionsThisWeek={scoreboardData.actionsThisWeek}
+            actionsThisMonth={scoreboardData.actionsThisMonth}
+          />
 
           {activePushes.map((push) => (
             <PushTile

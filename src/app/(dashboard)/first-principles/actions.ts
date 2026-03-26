@@ -350,3 +350,192 @@ export async function updatePushObjectives(pushId: string, objectiveIds: string[
     if (error) throw new Error(error.message);
   }
 }
+
+// ============================================================
+// REFLECTIONS & ACTIONS
+// ============================================================
+
+export async function createReflection(data: {
+  raw_text: string;
+  date: string;
+  covers_since: string;
+}): Promise<string> {
+  const supabase = await createClient();
+
+  const { data: reflection, error } = await supabase
+    .from("daily_reflections")
+    .insert({
+      raw_text: data.raw_text,
+      date: data.date,
+      covers_since: data.covers_since,
+      is_escape_hatch: data.raw_text.length < 50,
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    // Handle duplicate date (user already reflected today, maybe in another tab)
+    if (error.code === "23505") {
+      const { data: existing } = await supabase
+        .from("daily_reflections")
+        .select("id")
+        .eq("date", data.date)
+        .single();
+      if (existing) return existing.id;
+    }
+    throw new Error(error.message);
+  }
+
+  return reflection.id;
+}
+
+export async function finalizeActions(data: {
+  reflectionId: string;
+  reflectionDate: string;
+  actions: Array<{
+    id: string;
+    description: string;
+    needle_score: number;
+    push_ids: string[];
+    objective_ids: string[];
+    status: "accepted" | "edited" | "rejected";
+  }>;
+}) {
+  const supabase = await createClient();
+
+  for (const action of data.actions) {
+    if (action.status === "rejected") {
+      // Delete rejected actions and their links
+      await supabase.from("action_push_links").delete().eq("action_id", action.id);
+      await supabase.from("action_objective_links").delete().eq("action_id", action.id);
+      await supabase.from("actions").delete().eq("id", action.id);
+
+      // Update event status
+      await supabase
+        .from("events")
+        .update({ status: "rejected" })
+        .eq("event_type", "action_proposed")
+        .eq("payload->>action_id", action.id);
+    } else {
+      // Update accepted/edited actions
+      await supabase
+        .from("actions")
+        .update({
+          description: action.description,
+          needle_score: action.needle_score,
+          status: action.status,
+        })
+        .eq("id", action.id);
+
+      // Replace push links
+      await supabase.from("action_push_links").delete().eq("action_id", action.id);
+      if (action.push_ids.length > 0) {
+        await supabase.from("action_push_links").insert(
+          action.push_ids.map((push_id) => ({ action_id: action.id, push_id }))
+        );
+      }
+
+      // Replace objective links
+      await supabase.from("action_objective_links").delete().eq("action_id", action.id);
+      if (action.objective_ids.length > 0) {
+        await supabase.from("action_objective_links").insert(
+          action.objective_ids.map((objective_id) => ({
+            action_id: action.id,
+            objective_id,
+          }))
+        );
+      }
+
+      // Update event status
+      await supabase
+        .from("events")
+        .update({ status: "approved" })
+        .eq("event_type", "action_proposed")
+        .eq("payload->>action_id", action.id);
+    }
+  }
+
+  // Unlock the dashboard
+  await supabase
+    .from("system_state")
+    .update({
+      is_locked: false,
+      last_reflection_date: data.reflectionDate,
+    })
+    .eq("id", 1);
+
+  // Insert unlock event
+  await supabase.from("events").insert({
+    agent_name: "system",
+    event_type: "lock_released",
+    payload: {
+      summary: `Dashboard unlocked after reflection on ${data.reflectionDate}`,
+      reflection_id: data.reflectionId,
+    },
+    status: "executed",
+  });
+
+  // Recompute objective metrics
+  await recomputeObjectiveMetrics();
+}
+
+async function recomputeObjectiveMetrics() {
+  const supabase = await createClient();
+
+  const ninetyDaysAgo = new Date();
+  ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+
+  // Get all actions from the last 90 days with their objective links
+  const { data: actionLinks } = await supabase
+    .from("action_objective_links")
+    .select("action_id, objective_id, actions!inner(needle_score, created_at)")
+    .gte("actions.created_at", ninetyDaysAgo.toISOString());
+
+  const { data: totalActions } = await supabase
+    .from("actions")
+    .select("id")
+    .in("status", ["accepted", "edited"])
+    .gte("created_at", ninetyDaysAgo.toISOString());
+
+  const totalCount = totalActions?.length ?? 1; // avoid division by zero
+
+  // Group by objective
+  const objectiveData: Record<string, { count: number; scores: number[] }> = {};
+  for (const link of actionLinks ?? []) {
+    if (!objectiveData[link.objective_id]) {
+      objectiveData[link.objective_id] = { count: 0, scores: [] };
+    }
+    objectiveData[link.objective_id].count++;
+    const action = link.actions as unknown as { needle_score: number };
+    if (action.needle_score != null) {
+      objectiveData[link.objective_id].scores.push(action.needle_score);
+    }
+  }
+
+  // Update each objective
+  const { data: activeObjectives } = await supabase
+    .from("objectives")
+    .select("id")
+    .eq("status", "active");
+
+  for (const obj of activeObjectives ?? []) {
+    const data = objectiveData[obj.id];
+    const priority = data ? Math.round((data.count / totalCount) * 100) : 0;
+    const needleMovement = data?.scores.length
+      ? median(data.scores)
+      : 0;
+
+    await supabase
+      .from("objectives")
+      .update({ current_priority: priority, needle_movement: needleMovement })
+      .eq("id", obj.id);
+  }
+}
+
+function median(values: number[]): number {
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 !== 0
+    ? sorted[mid]
+    : (sorted[mid - 1] + sorted[mid]) / 2;
+}

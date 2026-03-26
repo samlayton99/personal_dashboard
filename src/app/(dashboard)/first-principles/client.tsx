@@ -1,18 +1,29 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ObjectivesPanel } from "@/components/objectives/objectives-panel";
 import { ObjectiveDetail } from "@/components/objectives/objective-detail";
 import { TodosPanel } from "@/components/todos/todos-panel";
 import { PushesPanel } from "@/components/pushes/pushes-panel";
 import { PushDetail } from "@/components/pushes/push-detail";
+import { LockOverlay } from "@/components/reflection/lock-overlay";
+import { useRealtime } from "@/lib/supabase/use-realtime";
+import { shouldLock } from "@/lib/utils/lock";
 import type { Database } from "@/types/database";
 
 type Objective = Database["public"]["Tables"]["objectives"]["Row"];
 type Tag = Database["public"]["Tables"]["tags"]["Row"];
 type Todo = Database["public"]["Tables"]["todos"]["Row"];
 type Push = Database["public"]["Tables"]["pushes"]["Row"];
+type SystemState = Database["public"]["Tables"]["system_state"]["Row"];
+
+interface ScoreboardData {
+  streak: number;
+  actionsThisWeek: number;
+  actionsThisMonth: number;
+}
 
 interface FirstPrinciplesClientProps {
   objectives: Objective[];
@@ -22,6 +33,8 @@ interface FirstPrinciplesClientProps {
   pushes: Push[];
   pushObjectiveMap: Record<string, string[]>;
   objectiveNameMap: Record<string, string>;
+  systemState: SystemState | null;
+  scoreboardData: ScoreboardData;
 }
 
 export function FirstPrinciplesClient({
@@ -31,13 +44,55 @@ export function FirstPrinciplesClient({
   todos,
   pushes: initialPushes,
   pushObjectiveMap: initialPushObjectiveMap,
+  systemState,
+  scoreboardData,
 }: FirstPrinciplesClientProps) {
+  const router = useRouter();
   const [objectives, setObjectives] = useState(initialObjectives);
   const [pushes, setPushes] = useState(initialPushes);
   const [pushObjectiveMap, setPushObjectiveMap] = useState(initialPushObjectiveMap);
   const [selectedObjectiveId, setSelectedObjectiveId] = useState<string | null>(null);
   const [selectedPushId, setSelectedPushId] = useState<string | null>(null);
   const lastClosedRef = useRef<{ id: string; time: number } | null>(null);
+
+  // Lock state
+  const [lastReflectionDate, setLastReflectionDate] = useState(
+    systemState?.last_reflection_date ?? null
+  );
+  const [isLocked, setIsLocked] = useState(() => {
+    if (systemState?.is_locked) return true;
+    return shouldLock(systemState?.last_reflection_date ?? null);
+  });
+
+  // Re-check lock every 60 seconds (catches 10 PM crossing while tab is open)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (!isLocked && shouldLock(lastReflectionDate)) {
+        setIsLocked(true);
+      }
+    }, 60_000);
+    return () => clearInterval(interval);
+  }, [isLocked, lastReflectionDate]);
+
+  // Listen for realtime system_state changes (edge function backup)
+  useRealtime({
+    table: "system_state",
+    event: "UPDATE",
+    onPayload: useCallback((payload: { new: Record<string, unknown> }) => {
+      const newState = payload.new as unknown as SystemState;
+      if (newState.is_locked) {
+        setIsLocked(true);
+      } else {
+        setIsLocked(false);
+        setLastReflectionDate(newState.last_reflection_date);
+      }
+    }, []),
+  });
+
+  function handleUnlock() {
+    setIsLocked(false);
+    router.refresh();
+  }
 
   const selectedObjective = objectives.find((o) => o.id === selectedObjectiveId) ?? null;
   const selectedPush = pushes.find((p) => p.id === selectedPushId) ?? null;
@@ -102,7 +157,16 @@ export function FirstPrinciplesClient({
   }
 
   return (
-    <div className="grid h-full grid-cols-[33%_1fr] gap-1.5 p-1.5">
+    <div className="relative grid h-full grid-cols-[33%_1fr] gap-1.5 p-1.5">
+      {isLocked && (
+        <LockOverlay
+          lastReflectionDate={lastReflectionDate}
+          activePushes={pushes.filter((p) => p.status === "active")}
+          activeObjectives={objectives.filter((o) => o.status === "active")}
+          onUnlock={handleUnlock}
+        />
+      )}
+
       {/* Left column: Objectives (full height) */}
       <div className="min-h-0 overflow-hidden rounded-lg border bg-card">
         <ObjectivesPanel
@@ -152,6 +216,7 @@ export function FirstPrinciplesClient({
             onSelect={handleSelectPush}
             pushObjectiveMap={pushObjectiveMap}
             objectiveNameMap={objectiveNameMap}
+            scoreboardData={scoreboardData}
           />
         </div>
 
