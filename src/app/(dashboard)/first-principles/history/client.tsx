@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useEffect, useTransition } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,12 +8,24 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   updateObjective,
   resurrectObjective,
   deleteObjective,
   updatePush,
   resurrectPush,
   deletePush,
+  deleteAction,
+  deleteActions,
 } from "@/app/(dashboard)/first-principles/actions";
 import type { Database } from "@/types/database";
 
@@ -30,17 +42,29 @@ interface HistoryPageClientProps {
 const tabs = ["Objectives", "Pushes", "Actions"] as const;
 type Tab = (typeof tabs)[number];
 
+type DeleteTarget =
+  | { mode: "single"; id: string }
+  | { mode: "bulk"; ids: string[] }
+  | null;
+
 export function HistoryPageClient({
   objectives: initialObjectives,
   pushes: initialPushes,
-  actions,
+  actions: initialActions,
 }: HistoryPageClientProps) {
   const [activeTab, setActiveTab] = useState<Tab>("Objectives");
   const [search, setSearch] = useState("");
   const [objectives, setObjectives] = useState(initialObjectives);
   const [pushes, setPushes] = useState(initialPushes);
+  const [actions, setActions] = useState(initialActions);
   const [selectedObjectiveId, setSelectedObjectiveId] = useState<string | null>(null);
   const [selectedPushId, setSelectedPushId] = useState<string | null>(null);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<DeleteTarget>(null);
+  const [isDeleting, startDeleteTransition] = useTransition();
+
+  useEffect(() => { setActions(initialActions); }, [initialActions]);
 
   const q = search.toLowerCase();
 
@@ -54,9 +78,26 @@ export function HistoryPageClient({
       p.name.toLowerCase().includes(q) ||
       p.retirement_note?.toLowerCase().includes(q)
   );
-  const filteredActions = actions.filter((a) =>
-    a.description.toLowerCase().includes(q)
-  );
+  const filteredActions = actions
+    .filter((a) => a.description.toLowerCase().includes(q))
+    .filter((a) => !dateFrom || a.date >= dateFrom)
+    .filter((a) => !dateTo || a.date <= dateTo);
+
+  const hasActiveFilters = search !== "" || dateFrom !== "" || dateTo !== "";
+
+  function handleConfirmDelete() {
+    if (!deleteTarget) return;
+    const idsToDelete = deleteTarget.mode === "single" ? [deleteTarget.id] : deleteTarget.ids;
+    setActions((prev) => prev.filter((a) => !idsToDelete.includes(a.id)));
+    setDeleteTarget(null);
+    startDeleteTransition(() => {
+      if (idsToDelete.length === 1) {
+        deleteAction(idsToDelete[0]);
+      } else {
+        deleteActions(idsToDelete);
+      }
+    });
+  }
 
   const selectedObjective = objectives.find((o) => o.id === selectedObjectiveId) ?? null;
   const selectedPush = pushes.find((p) => p.id === selectedPushId) ?? null;
@@ -134,6 +175,54 @@ export function HistoryPageClient({
             className="ml-auto w-64"
           />
         </div>
+
+        {/* Date filter bar (Actions tab only) */}
+        {activeTab === "Actions" && (
+          <div className="flex shrink-0 items-center gap-3 border-b px-3 py-2">
+            <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              From
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="h-7 rounded-md border bg-background px-2 text-xs"
+              />
+            </label>
+            <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              To
+              <input
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="h-7 rounded-md border bg-background px-2 text-xs"
+              />
+            </label>
+            {(dateFrom || dateTo) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => { setDateFrom(""); setDateTo(""); }}
+              >
+                Clear
+              </Button>
+            )}
+            {hasActiveFilters && filteredActions.length > 0 && (
+              <Button
+                variant="destructive"
+                size="sm"
+                className="ml-auto"
+                onClick={() =>
+                  setDeleteTarget({
+                    mode: "bulk",
+                    ids: filteredActions.map((a) => a.id),
+                  })
+                }
+              >
+                Delete All ({filteredActions.length})
+              </Button>
+            )}
+          </div>
+        )}
 
         {/* Content */}
         <div className="relative min-h-0 flex-1">
@@ -231,9 +320,20 @@ export function HistoryPageClient({
                       {filteredActions.map((action) => (
                         <div
                           key={action.id}
-                          className="rounded-lg border px-3 py-2.5 transition-colors hover:bg-accent/50"
+                          className="group relative rounded-lg border px-3 py-2.5 transition-colors hover:bg-accent/50"
                         >
-                          <div className="flex items-baseline justify-between">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeleteTarget({ mode: "single", id: action.id });
+                            }}
+                            className="absolute right-1.5 top-1.5 cursor-pointer rounded p-0.5 text-muted-foreground/50 opacity-0 transition-all hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
+                          >
+                            <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                          <div className="flex items-baseline justify-between pr-5">
                             <p className="text-sm">{action.description}</p>
                             <span className="shrink-0 text-xs text-muted-foreground">
                               {formatDate(action.date)}
@@ -270,6 +370,34 @@ export function HistoryPageClient({
           )}
         </div>
       </div>
+
+      {/* Delete confirmation dialog */}
+      <AlertDialog open={deleteTarget !== null} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {deleteTarget?.mode === "bulk"
+                ? `Delete ${deleteTarget.ids.length} Actions`
+                : "Delete Action"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteTarget?.mode === "bulk"
+                ? `All ${deleteTarget.ids.length} filtered actions will be permanently deleted. This cannot be undone.`
+                : "This action will be permanently deleted. This cannot be undone."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={handleConfirmDelete}
+              disabled={isDeleting}
+            >
+              {deleteTarget?.mode === "bulk" ? "Delete All" : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

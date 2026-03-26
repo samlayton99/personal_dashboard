@@ -484,6 +484,27 @@ export async function finalizeActions(data: {
   await recomputeObjectiveMetrics();
 }
 
+export async function deleteAction(id: string) {
+  const supabase = await createClient();
+
+  await supabase.from("action_push_links").delete().eq("action_id", id);
+  await supabase.from("action_objective_links").delete().eq("action_id", id);
+
+  const { error } = await supabase.from("actions").delete().eq("id", id);
+  if (error) throw new Error(error.message);
+}
+
+export async function deleteActions(ids: string[]) {
+  if (ids.length === 0) return;
+  const supabase = await createClient();
+
+  await supabase.from("action_push_links").delete().in("action_id", ids);
+  await supabase.from("action_objective_links").delete().in("action_id", ids);
+
+  const { error } = await supabase.from("actions").delete().in("id", ids);
+  if (error) throw new Error(error.message);
+}
+
 async function recomputeObjectiveMetrics() {
   const supabase = await createClient();
 
