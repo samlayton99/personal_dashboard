@@ -23,6 +23,7 @@ import {
   reorderObjectives,
 } from "@/app/(dashboard)/first-principles/actions";
 import type { Database } from "@/types/database";
+import type { FeaturedAction } from "@/types/featured-actions";
 
 type Objective = Database["public"]["Tables"]["objectives"]["Row"];
 
@@ -33,6 +34,8 @@ interface ObjectivesPanelProps {
   selectedId: string | null;
   onObjectivesChange: (objectives: Objective[]) => void;
   onSelect: (id: string) => void;
+  featuredActions?: Record<string, FeaturedAction[]>;
+  onFeaturedActionClick?: (action: FeaturedAction) => void;
 }
 
 export function ObjectivesPanel({
@@ -40,6 +43,8 @@ export function ObjectivesPanel({
   selectedId,
   onObjectivesChange,
   onSelect,
+  featuredActions = {},
+  onFeaturedActionClick,
 }: ObjectivesPanelProps) {
   const [sortMode, setSortMode] = useState<SortMode>("manual");
   const [isPending, startTransition] = useTransition();
@@ -157,6 +162,8 @@ export function ObjectivesPanel({
                     isSelected={objective.id === selectedId}
                     onClick={() => onSelect(objective.id)}
                     isDragDisabled={sortMode !== "manual"}
+                    featuredActions={featuredActions[objective.id]}
+                    onFeaturedActionClick={onFeaturedActionClick}
                   />
                 ))}
               </div>

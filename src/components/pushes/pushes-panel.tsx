@@ -5,6 +5,7 @@ import { Scoreboard } from "./scoreboard";
 import { PushTile } from "./push-tile";
 import { createPush } from "@/app/(dashboard)/first-principles/actions";
 import type { Database } from "@/types/database";
+import type { FeaturedAction } from "@/types/featured-actions";
 
 type Push = Database["public"]["Tables"]["pushes"]["Row"];
 
@@ -22,6 +23,8 @@ interface PushesPanelProps {
   pushObjectiveMap: Record<string, string[]>;
   objectiveNameMap: Record<string, string>;
   scoreboardData: ScoreboardData;
+  featuredActions?: Record<string, FeaturedAction[]>;
+  onFeaturedActionClick?: (action: FeaturedAction) => void;
 }
 
 export function PushesPanel({
@@ -32,6 +35,8 @@ export function PushesPanel({
   pushObjectiveMap,
   objectiveNameMap,
   scoreboardData,
+  featuredActions = {},
+  onFeaturedActionClick,
 }: PushesPanelProps) {
   const [isPending, startTransition] = useTransition();
   const creatingRef = useRef(false);
@@ -108,6 +113,8 @@ export function PushesPanel({
                 if (push.id.startsWith("push_temp_")) return;
                 onSelect(push.id);
               }}
+              featuredActions={featuredActions[push.id]}
+              onFeaturedActionClick={onFeaturedActionClick}
             />
           ))}
 

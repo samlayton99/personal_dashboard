@@ -9,8 +9,10 @@ import { TodosPanel } from "@/components/todos/todos-panel";
 import { PushesPanel } from "@/components/pushes/pushes-panel";
 import { PushDetail } from "@/components/pushes/push-detail";
 import { LockOverlay } from "@/components/reflection/lock-overlay";
+import { ActionDetailDialog } from "@/components/actions/action-detail-dialog";
 import { useRealtime } from "@/lib/supabase/use-realtime";
 import type { Database } from "@/types/database";
+import type { FeaturedAction } from "@/types/featured-actions";
 
 type Objective = Database["public"]["Tables"]["objectives"]["Row"];
 type Tag = Database["public"]["Tables"]["tags"]["Row"];
@@ -34,6 +36,8 @@ interface FirstPrinciplesClientProps {
   objectiveNameMap: Record<string, string>;
   systemState: SystemState | null;
   scoreboardData: ScoreboardData;
+  objectiveFeaturedActions: Record<string, FeaturedAction[]>;
+  pushFeaturedActions: Record<string, FeaturedAction[]>;
 }
 
 export function FirstPrinciplesClient({
@@ -45,6 +49,8 @@ export function FirstPrinciplesClient({
   pushObjectiveMap: initialPushObjectiveMap,
   systemState,
   scoreboardData,
+  objectiveFeaturedActions,
+  pushFeaturedActions,
 }: FirstPrinciplesClientProps) {
   const router = useRouter();
   const [objectives, setObjectives] = useState(initialObjectives);
@@ -52,6 +58,7 @@ export function FirstPrinciplesClient({
   const [pushObjectiveMap, setPushObjectiveMap] = useState(initialPushObjectiveMap);
   const [selectedObjectiveId, setSelectedObjectiveId] = useState<string | null>(null);
   const [selectedPushId, setSelectedPushId] = useState<string | null>(null);
+  const [selectedFeaturedAction, setSelectedFeaturedAction] = useState<FeaturedAction | null>(null);
 
   // Sync local state when server props change (e.g. after router.refresh())
   useEffect(() => { setObjectives(initialObjectives); }, [initialObjectives]);
@@ -168,6 +175,8 @@ export function FirstPrinciplesClient({
           selectedId={selectedObjectiveId}
           onObjectivesChange={setObjectives}
           onSelect={handleSelectObjective}
+          featuredActions={objectiveFeaturedActions}
+          onFeaturedActionClick={setSelectedFeaturedAction}
         />
       </div>
 
@@ -211,6 +220,8 @@ export function FirstPrinciplesClient({
             pushObjectiveMap={pushObjectiveMap}
             objectiveNameMap={objectiveNameMap}
             scoreboardData={scoreboardData}
+            featuredActions={pushFeaturedActions}
+            onFeaturedActionClick={setSelectedFeaturedAction}
           />
         </div>
 
@@ -231,6 +242,11 @@ export function FirstPrinciplesClient({
         )}
       </div>
 
+      <ActionDetailDialog
+        action={selectedFeaturedAction}
+        open={selectedFeaturedAction !== null}
+        onClose={() => setSelectedFeaturedAction(null)}
+      />
     </div>
   );
 }
