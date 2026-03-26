@@ -1,5 +1,3 @@
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
 import { getSystemState } from "@/lib/supabase/cached-queries";
 import { TabBar } from "@/components/layout/tab-bar";
 import { LockWatcher } from "@/components/layout/lock-watcher";
@@ -9,15 +7,7 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/login");
-  }
-
+  // Auth is handled by middleware -- if we render, user is authenticated.
   const systemState = await getSystemState();
 
   return (

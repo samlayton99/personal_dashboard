@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getSystemState } from "@/lib/supabase/cached-queries";
 import { startOfWeek, startOfMonth } from "@/lib/utils/dates";
 import { computeFeaturedActionScore } from "@/lib/utils/scoring";
+import { recomputeObjectiveMetrics } from "./actions";
 import { FirstPrinciplesClient } from "./client";
 import type { FeaturedAction } from "@/types/featured-actions";
 
@@ -11,7 +12,10 @@ export default async function FirstPrinciplesPage() {
   const ninetyDaysAgo = new Date();
   ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
 
+  // Recompute objective metrics in parallel with data fetching
+  // to ensure priority/needle scores stay fresh
   const [
+    ,
     systemState,
     objectivesRes,
     tagsRes,
@@ -26,6 +30,7 @@ export default async function FirstPrinciplesPage() {
     actionObjLinksRes,
     actionPushLinksRes,
   ] = await Promise.all([
+    recomputeObjectiveMetrics(),
     getSystemState(),
     supabase
       .from("objectives")

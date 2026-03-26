@@ -492,6 +492,7 @@ export async function deleteAction(id: string) {
 
   const { error } = await supabase.from("actions").delete().eq("id", id);
   if (error) throw new Error(error.message);
+  await recomputeObjectiveMetrics();
 }
 
 export async function deleteActions(ids: string[]) {
@@ -503,9 +504,10 @@ export async function deleteActions(ids: string[]) {
 
   const { error } = await supabase.from("actions").delete().in("id", ids);
   if (error) throw new Error(error.message);
+  await recomputeObjectiveMetrics();
 }
 
-async function recomputeObjectiveMetrics() {
+export async function recomputeObjectiveMetrics() {
   const supabase = await createClient();
 
   const ninetyDaysAgo = new Date();
@@ -523,7 +525,7 @@ async function recomputeObjectiveMetrics() {
     .in("status", ["accepted", "edited"])
     .gte("created_at", ninetyDaysAgo.toISOString());
 
-  const totalCount = totalActions?.length ?? 1; // avoid division by zero
+  const totalCount = totalActions?.length || 1; // avoid division by zero
 
   // Group by objective
   const objectiveData: Record<string, { count: number; scores: number[] }> = {};
