@@ -70,41 +70,44 @@ export function ActionReview({
   ).length;
 
   return (
-    <div className="flex flex-col gap-4">
-      <div>
-        <h2 className="text-xl font-semibold tracking-tight">
-          Review Proposed Actions
-        </h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {acceptedCount} of {actions.length} actions will be saved. Edit
-          descriptions, adjust impact scores, or link to different pushes and
-          objectives.
-        </p>
+    <div className="rounded-lg border bg-card">
+      <div className="flex items-center justify-between border-b px-4 py-3">
+        <div>
+          <h2 className="text-sm font-semibold">Review Proposed Actions</h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            {acceptedCount} of {actions.length} actions will be saved
+          </p>
+        </div>
       </div>
 
-      <div className="flex max-h-[50vh] flex-col gap-3 overflow-y-auto pr-1">
-        {actions.map((action) => (
-          <ActionCard
-            key={action.id}
-            action={action}
-            activePushes={activePushes}
-            activeObjectives={activeObjectives}
-            onUpdate={handleUpdate}
-          />
-        ))}
+      <div className="max-h-[55vh] overflow-y-auto p-3">
+        <div className="flex flex-col gap-2">
+          {actions.map((action) => (
+            <ActionCard
+              key={action.id}
+              action={action}
+              activePushes={activePushes}
+              activeObjectives={activeObjectives}
+              onUpdate={handleUpdate}
+            />
+          ))}
+        </div>
       </div>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
-
-      <Button
-        onClick={() => onConfirm(actions)}
-        disabled={isConfirming || acceptedCount === 0}
-        className="self-end"
-      >
-        {isConfirming
-          ? "Saving..."
-          : `Confirm ${acceptedCount} Action${acceptedCount !== 1 ? "s" : ""}`}
-      </Button>
+      <div className="flex items-center justify-between border-t px-4 py-3">
+        <div>
+          {error && <p className="text-xs text-red-600">{error}</p>}
+        </div>
+        <Button
+          onClick={() => onConfirm(actions)}
+          disabled={isConfirming || acceptedCount === 0}
+          size="sm"
+        >
+          {isConfirming
+            ? "Saving..."
+            : `Confirm ${acceptedCount} Action${acceptedCount !== 1 ? "s" : ""}`}
+        </Button>
+      </div>
     </div>
   );
 }

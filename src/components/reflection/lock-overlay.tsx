@@ -97,34 +97,36 @@ export function LockOverlay({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/80 backdrop-blur-sm">
-      <div className="w-full max-w-2xl px-6">
-        {phase === "input" && (
-          <ReflectionInput
-            lastReflectionDate={lastReflectionDate}
-            onReflectionCreated={handleReflectionCreated}
-            error={error}
-          />
-        )}
+      <div className="flex w-full items-center justify-center overflow-y-auto p-6">
+        <div className="w-full max-w-2xl">
+          {phase === "input" && (
+            <ReflectionInput
+              lastReflectionDate={lastReflectionDate}
+              onReflectionCreated={handleReflectionCreated}
+              error={error}
+            />
+          )}
 
-        {phase === "generating" && (
-          <div className="flex flex-col items-center gap-4 py-12">
-            <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-            <p className="text-sm text-muted-foreground">
-              Generating actions from your reflection...
-            </p>
-          </div>
-        )}
+          {phase === "generating" && (
+            <div className="flex flex-col items-center gap-3 rounded-lg border bg-card p-8">
+              <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+              <p className="text-sm text-muted-foreground">
+                Generating actions from your reflection...
+              </p>
+            </div>
+          )}
 
-        {phase === "review" && (
-          <ActionReview
-            actions={actions}
-            activePushes={activePushes}
-            activeObjectives={activeObjectives}
-            onConfirm={handleConfirm}
-            isConfirming={isConfirming}
-            error={error}
-          />
-        )}
+          {phase === "review" && (
+            <ActionReview
+              actions={actions}
+              activePushes={activePushes}
+              activeObjectives={activeObjectives}
+              onConfirm={handleConfirm}
+              isConfirming={isConfirming}
+              error={error}
+            />
+          )}
+        </div>
       </div>
     </div>
   );

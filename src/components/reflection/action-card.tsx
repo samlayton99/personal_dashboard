@@ -39,13 +39,6 @@ export function ActionCard({
 
   const isRejected = action.status === "rejected";
 
-  const borderColor =
-    action.status === "accepted"
-      ? "border-green-300"
-      : action.status === "edited"
-        ? "border-amber-300"
-        : "border-gray-200 opacity-50";
-
   function handleAccept() {
     onUpdate({ ...action, status: "accepted" });
   }
@@ -97,17 +90,21 @@ export function ActionCard({
 
   return (
     <div
-      className={`rounded-lg border-2 ${borderColor} bg-white p-4 transition-all ${
-        isRejected ? "line-through" : ""
+      className={`rounded-lg border px-3 py-2.5 transition-all ${
+        isRejected
+          ? "border-border bg-muted/30 opacity-50"
+          : action.status === "edited"
+            ? "border-amber-300 bg-card"
+            : "border-border bg-card"
       }`}
     >
-      <div className="flex items-start gap-3">
+      <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1">
           {isEditing ? (
             <Textarea
               value={editDescription}
               onChange={(e) => setEditDescription(e.target.value)}
-              className="min-h-[60px] resize-none text-sm"
+              className="min-h-[48px] resize-none border-0 bg-transparent p-0 text-[13px] shadow-none focus-visible:ring-0"
               autoFocus
               onBlur={handleSaveEdit}
               onKeyDown={(e) => {
@@ -118,82 +115,76 @@ export function ActionCard({
               }}
             />
           ) : (
-            <p
-              className={`text-sm ${isRejected ? "text-muted-foreground" : ""}`}
-            >
+            <p className={`text-[13px] ${isRejected ? "line-through text-muted-foreground" : ""}`}>
               {action.description}
             </p>
           )}
         </div>
 
-        <div className="flex shrink-0 gap-1">
+        <div className="flex shrink-0 gap-0.5">
           {!isRejected && (
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7"
+              className="h-6 w-6"
               onClick={() => {
                 setIsEditing(true);
                 setEditDescription(action.description);
               }}
             >
-              <Pencil className="h-3.5 w-3.5" />
+              <Pencil className="h-3 w-3" />
             </Button>
           )}
           {isRejected ? (
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7 text-green-600"
+              className="h-6 w-6 text-green-600"
               onClick={handleAccept}
             >
-              <Check className="h-3.5 w-3.5" />
+              <Check className="h-3 w-3" />
             </Button>
           ) : (
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7 text-red-500"
+              className="h-6 w-6 text-muted-foreground hover:text-red-500"
               onClick={handleReject}
             >
-              <X className="h-3.5 w-3.5" />
+              <X className="h-3 w-3" />
             </Button>
           )}
         </div>
       </div>
 
       {!isRejected && (
-        <div className="mt-3 space-y-3">
+        <div className="mt-2 space-y-2">
           {/* Needle score */}
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-muted-foreground">Impact</span>
+          <div className="flex items-center gap-2">
+            <span className="w-10 text-[10px] uppercase tracking-wider text-muted-foreground">Impact</span>
             <input
               type="range"
               min={0}
               max={100}
               value={action.needle_score}
               onChange={(e) => handleNeedleChange(Number(e.target.value))}
-              className="h-1.5 flex-1 cursor-pointer accent-primary"
+              className="h-1 flex-1 cursor-pointer accent-primary"
             />
-            <span className="w-8 text-right font-mono text-xs">
+            <span className="w-6 text-right font-mono text-[11px] tabular-nums text-muted-foreground">
               {action.needle_score}
             </span>
           </div>
 
           {/* Pushes */}
           {activePushes.length > 0 && (
-            <div>
-              <span className="text-xs text-muted-foreground">Pushes</span>
-              <div className="mt-1 flex flex-wrap gap-1">
+            <div className="flex items-start gap-2">
+              <span className="w-10 shrink-0 pt-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">Pushes</span>
+              <div className="flex flex-wrap gap-1">
                 {activePushes.map((push) => (
                   <Badge
                     key={push.id}
-                    variant={
-                      action.push_ids.includes(push.id)
-                        ? "default"
-                        : "outline"
-                    }
-                    className="cursor-pointer text-xs"
+                    variant={action.push_ids.includes(push.id) ? "default" : "outline"}
+                    className="cursor-pointer px-1.5 py-0 text-[10px]"
                     onClick={() => togglePush(push.id)}
                   >
                     {push.name}
@@ -205,18 +196,14 @@ export function ActionCard({
 
           {/* Objectives */}
           {activeObjectives.length > 0 && (
-            <div>
-              <span className="text-xs text-muted-foreground">Objectives</span>
-              <div className="mt-1 flex flex-wrap gap-1">
+            <div className="flex items-start gap-2">
+              <span className="w-10 shrink-0 pt-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">Goals</span>
+              <div className="flex flex-wrap gap-1">
                 {activeObjectives.map((obj) => (
                   <Badge
                     key={obj.id}
-                    variant={
-                      action.objective_ids.includes(obj.id)
-                        ? "default"
-                        : "outline"
-                    }
-                    className="cursor-pointer text-xs"
+                    variant={action.objective_ids.includes(obj.id) ? "default" : "outline"}
+                    className="cursor-pointer px-1.5 py-0 text-[10px]"
                     onClick={() => toggleObjective(obj.id)}
                   >
                     {obj.name}

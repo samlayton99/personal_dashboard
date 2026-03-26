@@ -40,37 +40,42 @@ export function ReflectionInput({
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <div>
-        <h2 className="text-xl font-semibold tracking-tight">
+    <div className="rounded-lg border bg-card">
+      <div className="border-b px-4 py-3">
+        <h2 className="text-sm font-semibold">
           {hasMultiDayGap
             ? `What have you been up to since ${formatDate(coversSince)}?`
             : "What did you do today?"}
         </h2>
-        <p className="mt-1 text-sm text-muted-foreground">
+        <p className="mt-0.5 text-xs text-muted-foreground">
           Reflect on your actions and progress. Even a sentence or two is fine.
         </p>
       </div>
 
-      <Textarea
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        placeholder="Today I worked on..."
-        className="min-h-[120px] resize-none"
-        autoFocus
-      />
+      <div className="p-4">
+        <Textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="Today I worked on..."
+          className="min-h-[140px] resize-none border-0 bg-transparent p-0 text-sm shadow-none focus-visible:ring-0"
+          autoFocus
+        />
+      </div>
 
-      {error && (
-        <p className="text-sm text-red-600">{error}</p>
-      )}
-
-      <Button
-        onClick={handleSubmit}
-        disabled={!text.trim() || isPending}
-        className="self-end"
-      >
-        {isPending ? "Submitting..." : "Submit Reflection"}
-      </Button>
+      <div className="flex items-center justify-between border-t px-4 py-3">
+        <div>
+          {error && (
+            <p className="text-xs text-red-600">{error}</p>
+          )}
+        </div>
+        <Button
+          onClick={handleSubmit}
+          disabled={!text.trim() || isPending}
+          size="sm"
+        >
+          {isPending ? "Submitting..." : "Submit"}
+        </Button>
+      </div>
     </div>
   );
 }
