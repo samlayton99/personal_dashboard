@@ -114,7 +114,10 @@ export function TodosPanel({ initialTodos }: TodosPanelProps) {
       date_completed: null,
     };
     setTodos((prev) => [...prev, newTodo]);
-    startTransition(() => createTodo({ description, panel }));
+    startTransition(async () => {
+      const realId = await createTodo({ description, panel });
+      setTodos((prev) => prev.map((t) => (t.id === tempId ? { ...t, id: realId } : t)));
+    });
   }
 
   function findPanel(id: string): Panel | null {

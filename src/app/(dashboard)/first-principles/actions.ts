@@ -160,7 +160,7 @@ export async function createTodo(data: {
     .limit(1)
     .single();
 
-  const { error } = await supabase.from("todos").insert({
+  const { data: todo, error } = await supabase.from("todos").insert({
     description: data.description,
     panel,
     push_id: data.push_id ?? null,
@@ -168,9 +168,10 @@ export async function createTodo(data: {
     due_date: data.due_date ?? null,
     sort_order: (maxOrder?.sort_order ?? -1) + 1,
     source: "manual",
-  });
+  }).select("id").single();
 
   if (error) throw new Error(error.message);
+  return todo.id;
 }
 
 export async function toggleTodoComplete(id: string, isCompleted: boolean) {
