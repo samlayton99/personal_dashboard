@@ -12,31 +12,6 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.4"
   }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       action_objective_links: {
@@ -214,6 +189,109 @@ export type Database = {
           status?: Database["public"]["Enums"]["event_status"]
         }
         Relationships: []
+      }
+      network_contacts: {
+        Row: {
+          created_at: string
+          group_id: string
+          id: string
+          name: string
+          section: Database["public"]["Enums"]["network_section"]
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          group_id: string
+          id?: string
+          name: string
+          section?: Database["public"]["Enums"]["network_section"]
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          group_id?: string
+          id?: string
+          name?: string
+          section?: Database["public"]["Enums"]["network_section"]
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "network_contacts_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "network_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      network_groups: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      network_meetings: {
+        Row: {
+          contact_name: string
+          created_at: string
+          group_id: string
+          group_name: string
+          id: string
+          met_at: string
+          notes: string | null
+          section_at_meeting: Database["public"]["Enums"]["network_section"]
+        }
+        Insert: {
+          contact_name: string
+          created_at?: string
+          group_id: string
+          group_name: string
+          id?: string
+          met_at?: string
+          notes?: string | null
+          section_at_meeting: Database["public"]["Enums"]["network_section"]
+        }
+        Update: {
+          contact_name?: string
+          created_at?: string
+          group_id?: string
+          group_name?: string
+          id?: string
+          met_at?: string
+          notes?: string | null
+          section_at_meeting?: Database["public"]["Enums"]["network_section"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "network_meetings_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "network_groups"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       objective_tags: {
         Row: {
@@ -561,6 +639,7 @@ export type Database = {
         | "family"
         | "other"
       event_status: "executed" | "pending_approval" | "approved" | "rejected"
+      network_section: "queue" | "waiting_on" | "scheduled"
       objective_status: "active" | "inactive"
       push_status: "active" | "inactive"
       retirement_reason: "completed" | "failed" | "na"
@@ -693,9 +772,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
       action_status: ["pending", "accepted", "edited"],
@@ -708,6 +784,7 @@ export const Constants = {
         "other",
       ],
       event_status: ["executed", "pending_approval", "approved", "rejected"],
+      network_section: ["queue", "waiting_on", "scheduled"],
       objective_status: ["active", "inactive"],
       push_status: ["active", "inactive"],
       retirement_reason: ["completed", "failed", "na"],
