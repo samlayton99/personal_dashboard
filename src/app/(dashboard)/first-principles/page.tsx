@@ -5,6 +5,8 @@ import { recomputeObjectiveMetrics } from "./actions";
 import { FirstPrinciplesClient } from "./client";
 import type { FeaturedAction } from "@/types/featured-actions";
 
+export const dynamic = "force-dynamic";
+
 export default async function FirstPrinciplesPage() {
   const supabase = await createClient();
 

@@ -2,6 +2,8 @@ import { getSystemState } from "@/lib/supabase/cached-queries";
 import { TabBar } from "@/components/layout/tab-bar";
 import { LockWatcher } from "@/components/layout/lock-watcher";
 
+export const dynamic = "force-dynamic";
+
 export default async function DashboardLayout({
   children,
 }: {

@@ -131,8 +131,8 @@ export function LockOverlay({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/80 backdrop-blur-sm">
-      <div className="flex w-full items-center justify-center overflow-y-auto p-6">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-white/80 backdrop-blur-sm">
+      <div className="flex min-h-full w-full items-center justify-center p-6">
         <div className="w-full max-w-2xl">
           {phase === "input" && (
             <ReflectionInput

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useTransition } from "react";
+import { useState, useEffect, useRef, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -65,8 +65,15 @@ export function HistoryPageClient({
   const [dateTo, setDateTo] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget>(null);
   const [isDeleting, startDeleteTransition] = useTransition();
+  const pendingDeletesRef = useRef<Set<string>>(new Set());
 
-  useEffect(() => { setActions(initialActions); }, [initialActions]);
+  // Sync server props but don't resurrect items that are pending deletion
+  useEffect(() => {
+    setActions((prev) => {
+      if (pendingDeletesRef.current.size === 0) return initialActions;
+      return initialActions.filter((a) => !pendingDeletesRef.current.has(a.id));
+    });
+  }, [initialActions]);
 
   const q = search.toLowerCase();
 
@@ -90,13 +97,19 @@ export function HistoryPageClient({
   function handleConfirmDelete() {
     if (!deleteTarget) return;
     const idsToDelete = deleteTarget.mode === "single" ? [deleteTarget.id] : deleteTarget.ids;
+    // Mark as pending so useEffect sync won't resurrect them
+    for (const id of idsToDelete) pendingDeletesRef.current.add(id);
     setActions((prev) => prev.filter((a) => !idsToDelete.includes(a.id)));
     setDeleteTarget(null);
     startDeleteTransition(async () => {
-      if (idsToDelete.length === 1) {
-        await deleteAction(idsToDelete[0]);
-      } else {
-        await deleteActions(idsToDelete);
+      try {
+        if (idsToDelete.length === 1) {
+          await deleteAction(idsToDelete[0]);
+        } else {
+          await deleteActions(idsToDelete);
+        }
+      } finally {
+        for (const id of idsToDelete) pendingDeletesRef.current.delete(id);
       }
       router.refresh();
     });

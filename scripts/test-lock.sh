@@ -35,11 +35,10 @@ case "${1:-status}" in
     echo "Dashboard locked. Refresh the page."
     ;;
   unlock)
-    TODAY=$(date +%Y-%m-%d)
     curl -s -X PATCH "$API" "${HEADERS[@]}" \
-      -d '{"is_locked": false, "last_reflection_date": "'$TODAY'"}' \
+      -d '{"is_locked": false}' \
       | python3 -m json.tool 2>/dev/null || echo "Done"
-    echo "Dashboard unlocked."
+    echo "Dashboard unlocked (last_reflection_date unchanged — autolock will still trigger at 10 PM)."
     ;;
   status)
     curl -s "$API" "${HEADERS[@]}" -H "Accept: application/json" \

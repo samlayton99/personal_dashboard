@@ -8,7 +8,7 @@
 // 1. Lock utility tests
 // ============================================================
 
-import { shouldLock, getLocalDateString } from "../utils/lock";
+import { shouldTriggerLock, getLocalDateString } from "../utils/lock";
 
 function testLockUtility() {
   console.log("--- Lock Utility Tests ---");
@@ -18,30 +18,30 @@ function testLockUtility() {
   const dateMatch = /^\d{4}-\d{2}-\d{2}$/.test(dateStr);
   console.assert(dateMatch, `getLocalDateString format: got "${dateStr}"`);
 
-  // shouldLock with null date should depend on time only
+  // shouldTriggerLock with null date should depend on time only
   // (can't fully test time-dependent behavior, but we can test the date logic)
   console.assert(
-    shouldLock(null) === true || shouldLock(null) === false,
-    "shouldLock(null) returns boolean"
+    shouldTriggerLock(null) === true || shouldTriggerLock(null) === false,
+    "shouldTriggerLock(null) returns boolean"
   );
 
-  // shouldLock with today's date should return false (already reflected today)
+  // shouldTriggerLock with today's date should return false (already reflected today)
   // unless it's after 10 PM AND the date comparison fails
   const today = getLocalDateString();
   const yesterday = new Date();
   yesterday.setDate(yesterday.getDate() - 1);
   const yesterdayStr = yesterday.toISOString().split("T")[0];
 
-  // If it's before 10 PM, shouldLock should always be false
+  // If it's before 10 PM, shouldTriggerLock should always be false
   const hour = new Date().getHours();
   if (hour < 22) {
-    console.assert(shouldLock(null) === false, "Before 10 PM: shouldLock(null) = false");
-    console.assert(shouldLock(today) === false, "Before 10 PM: shouldLock(today) = false");
-    console.assert(shouldLock(yesterdayStr) === false, "Before 10 PM: shouldLock(yesterday) = false");
+    console.assert(shouldTriggerLock(null) === false, "Before 10 PM: shouldTriggerLock(null) = false");
+    console.assert(shouldTriggerLock(today) === false, "Before 10 PM: shouldTriggerLock(today) = false");
+    console.assert(shouldTriggerLock(yesterdayStr) === false, "Before 10 PM: shouldTriggerLock(yesterday) = false");
   } else {
-    console.assert(shouldLock(today) === false, "After 10 PM: shouldLock(today) = false (already reflected)");
-    console.assert(shouldLock(yesterdayStr) === true, "After 10 PM: shouldLock(yesterday) = true");
-    console.assert(shouldLock(null) === true, "After 10 PM: shouldLock(null) = true");
+    console.assert(shouldTriggerLock(today) === false, "After 10 PM: shouldTriggerLock(today) = false (already reflected)");
+    console.assert(shouldTriggerLock(yesterdayStr) === true, "After 10 PM: shouldTriggerLock(yesterday) = true");
+    console.assert(shouldTriggerLock(null) === true, "After 10 PM: shouldTriggerLock(null) = true");
   }
 
   console.log("Lock utility tests passed");

@@ -10,11 +10,15 @@ export function getLocalDateString(): string {
 }
 
 /**
- * Returns true if the dashboard should be locked:
+ * Returns true if the lock should be TRIGGERED for the first time today:
  * - Current local time is >= 10 PM, AND
  * - lastReflectionDate is before today (or null)
+ *
+ * This is only for deciding when to initially set is_locked=true.
+ * Once locked, the lock persists indefinitely until the reflection
+ * flow explicitly unlocks it — this function is NOT consulted for that.
  */
-export function shouldLock(lastReflectionDate: string | null): boolean {
+export function shouldTriggerLock(lastReflectionDate: string | null): boolean {
   const now = new Date();
   if (now.getHours() < LOCK_HOUR) return false;
   if (!lastReflectionDate) return true;

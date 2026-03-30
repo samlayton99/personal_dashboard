@@ -59,7 +59,7 @@ export function ReflectionInput({
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder="Today I worked on..."
-            className="min-h-[140px] resize-none border-0 bg-transparent p-0 text-sm shadow-none focus-visible:ring-0"
+            className="min-h-[140px] max-h-[50vh] resize-none overflow-y-auto border-0 bg-transparent p-0 text-sm shadow-none focus-visible:ring-0"
             autoFocus
           />
         </div>
@@ -80,7 +80,7 @@ export function ReflectionInput({
             value={todoText}
             onChange={(e) => setTodoText(e.target.value)}
             placeholder="Call dentist, finish report by Friday, research X next month..."
-            className="min-h-[80px] resize-none border-0 bg-transparent p-0 text-sm shadow-none focus-visible:ring-0"
+            className="min-h-[80px] max-h-[40vh] resize-none overflow-y-auto border-0 bg-transparent p-0 text-sm shadow-none focus-visible:ring-0"
           />
         </div>
       </div>

@@ -36,9 +36,28 @@ interface TodosPanelProps {
 export function TodosPanel({ initialTodos }: TodosPanelProps) {
   const [todos, setTodos] = useState(initialTodos);
 
-  // Sync local state when server props change (e.g. after router.refresh())
+  // Track in-flight operations so we don't clobber optimistic state
+  const pendingDeletesRef = useRef<Set<string>>(new Set());
+  const pendingCreatesRef = useRef<Map<string, string>>(new Map()); // tempId -> description
+
+  // Sync local state when server props change, but respect in-flight operations
   useEffect(() => {
-    setTodos(initialTodos);
+    setTodos((prev) => {
+      // If nothing is in flight, trust the server
+      if (pendingDeletesRef.current.size === 0 && pendingCreatesRef.current.size === 0) {
+        return initialTodos;
+      }
+      // Merge: use server data but preserve optimistic deletes and pending creates
+      const merged = initialTodos.filter((t) => !pendingDeletesRef.current.has(t.id));
+      // Re-add any temp todos that haven't been resolved yet
+      const tempTodos = prev.filter((t) => t.id.startsWith("temp_"));
+      for (const temp of tempTodos) {
+        if (!merged.some((t) => t.id === temp.id)) {
+          merged.push(temp);
+        }
+      }
+      return merged;
+    });
   }, [initialTodos]);
 
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
@@ -63,17 +82,32 @@ export function TodosPanel({ initialTodos }: TodosPanelProps) {
         if (payload.eventType === "INSERT") {
           const newTodo = payload.new as unknown as Todo;
           setTodos((prev) => {
+            // Already have this exact ID
             if (prev.some((t) => t.id === newTodo.id)) return prev;
+            // Check if this INSERT matches a pending optimistic create (temp_ todo)
+            const matchIdx = prev.findIndex(
+              (t) => t.id.startsWith("temp_") && t.description === newTodo.description && t.panel === newTodo.panel
+            );
+            if (matchIdx !== -1) {
+              // Swap the temp todo for the real one from the server
+              pendingCreatesRef.current.delete(prev[matchIdx].id);
+              return prev.map((t, i) => (i === matchIdx ? newTodo : t));
+            }
+            // Skip if this ID was already deleted optimistically
+            if (pendingDeletesRef.current.has(newTodo.id)) return prev;
             return [...prev, newTodo];
           });
         } else if (payload.eventType === "UPDATE") {
           const updated = payload.new as unknown as Todo;
+          // Skip updates for items we've optimistically deleted
+          if (pendingDeletesRef.current.has(updated.id)) return;
           setTodos((prev) =>
             prev.map((t) => (t.id === updated.id ? updated : t))
           );
         } else if (payload.eventType === "DELETE") {
           const deleted = payload.old as unknown as { id: string };
           if (deleted.id) {
+            pendingDeletesRef.current.delete(deleted.id);
             setTodos((prev) => prev.filter((t) => t.id !== deleted.id));
           }
         }
@@ -94,12 +128,21 @@ export function TodosPanel({ initialTodos }: TodosPanelProps) {
   }
 
   function handleDelete(id: string) {
+    pendingDeletesRef.current.add(id);
     setTodos((prev) => prev.filter((t) => t.id !== id));
-    startTransition(() => deleteTodo(id));
+    startTransition(async () => {
+      try {
+        await deleteTodo(id);
+      } finally {
+        // Clean up after server confirms (realtime DELETE will also clean up)
+        pendingDeletesRef.current.delete(id);
+      }
+    });
   }
 
   function handleAdd(description: string, panel: Panel) {
     const tempId = `temp_${Date.now()}`;
+    pendingCreatesRef.current.set(tempId, description);
     const newTodo: Todo = {
       id: tempId,
       description,
@@ -115,8 +158,15 @@ export function TodosPanel({ initialTodos }: TodosPanelProps) {
     };
     setTodos((prev) => [...prev, newTodo]);
     startTransition(async () => {
-      const realId = await createTodo({ description, panel });
-      setTodos((prev) => prev.map((t) => (t.id === tempId ? { ...t, id: realId } : t)));
+      try {
+        const realId = await createTodo({ description, panel });
+        pendingCreatesRef.current.delete(tempId);
+        setTodos((prev) => prev.map((t) => (t.id === tempId ? { ...t, id: realId } : t)));
+      } catch {
+        // Roll back the optimistic add on failure
+        pendingCreatesRef.current.delete(tempId);
+        setTodos((prev) => prev.filter((t) => t.id !== tempId));
+      }
     });
   }
 
