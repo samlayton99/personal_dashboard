@@ -96,5 +96,7 @@ async function callOpenAI(
   }
 
   const data = await res.json();
-  return data.choices?.[0]?.message?.content ?? "";
+  const content = data.choices?.[0]?.message?.content;
+  if (!content) throw new Error("No text content in OpenAI response");
+  return content;
 }
