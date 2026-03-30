@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ReflectionInput } from "./reflection-input";
 import { ActionReview } from "./action-review";
 import { finalizeActions } from "@/app/(dashboard)/first-principles/actions";
+import { getEffectiveReflectionDate } from "@/lib/utils/lock";
 import type { Database } from "@/types/database";
 
 type Push = Database["public"]["Tables"]["pushes"]["Row"];
@@ -121,6 +122,7 @@ export function LockOverlay({
       await finalizeActions({
         reflectionId,
         reflectionDate,
+        effectiveLockDate: getEffectiveReflectionDate(),
         actions: finalActions,
       });
       onUnlock();

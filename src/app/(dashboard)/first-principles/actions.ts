@@ -398,6 +398,7 @@ export async function createReflection(data: {
 export async function finalizeActions(data: {
   reflectionId: string;
   reflectionDate: string;
+  effectiveLockDate: string;
   actions: Array<{
     id: string;
     description: string;
@@ -462,11 +463,13 @@ export async function finalizeActions(data: {
   }
 
   // Unlock the dashboard
+  // Use effectiveLockDate: if unlocking before 10 PM (catch-up), this is yesterday
+  // so tonight's 10 PM lock still fires. If at/after 10 PM, this is today.
   await supabase
     .from("system_state")
     .update({
       is_locked: false,
-      last_reflection_date: data.reflectionDate,
+      last_reflection_date: data.effectiveLockDate,
     })
     .eq("id", 1);
 
