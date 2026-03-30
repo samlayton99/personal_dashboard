@@ -14,6 +14,7 @@ interface PushTileProps {
   onClick: () => void;
   featuredActions?: FeaturedAction[];
   onFeaturedActionClick?: (action: FeaturedAction) => void;
+  color?: string;
 }
 
 export function PushTile({
@@ -23,15 +24,21 @@ export function PushTile({
   onClick,
   featuredActions = [],
   onFeaturedActionClick,
+  color,
 }: PushTileProps) {
   return (
     <div
       className={cn(
         "relative flex h-full cursor-pointer flex-col rounded-lg border transition-all",
         isSelected
-          ? "border-primary bg-primary/5 ring-1 ring-primary/20"
-          : "bg-card hover:bg-accent/50 hover:border-border/80"
+          ? "ring-1"
+          : "hover:bg-accent/50"
       )}
+      style={color ? {
+        borderColor: isSelected ? color : `${color}50`,
+        backgroundColor: isSelected ? `${color}0a` : undefined,
+        ...(isSelected ? { boxShadow: `0 0 0 1px ${color}33` } : {}),
+      } : undefined}
       onClick={onClick}
     >
       <div className="flex-1 p-3">

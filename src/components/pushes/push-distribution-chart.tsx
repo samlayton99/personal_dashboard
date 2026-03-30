@@ -10,12 +10,12 @@ interface PushDistributionChartProps {
   slices: PushActionSlice[];
 }
 
-const CHART_COLORS = [
-  "#4f86c6", // blue
-  "#e07a5f", // terracotta
-  "#81b29a", // sage green
-  "#f2cc8f", // warm gold
-  "#9a8fcc", // soft purple
+export const CHART_COLORS = [
+  "#3b7dd8", // vibrant blue
+  "#d4583a", // vibrant terracotta
+  "#4fa882", // vibrant sage green
+  "#e6a832", // vibrant gold
+  "#7c6fc4", // vibrant purple
 ];
 
 export function PushDistributionChart({ slices }: PushDistributionChartProps) {

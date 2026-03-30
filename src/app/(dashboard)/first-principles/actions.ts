@@ -239,7 +239,6 @@ export async function createPush(data: {
   notes?: string;
 }): Promise<string> {
   const supabase = await createServerSupabaseClient();
-  const id = createTempId("push");
 
   const { count } = await supabase
     .from("pushes")
@@ -257,6 +256,7 @@ export async function createPush(data: {
     .limit(1)
     .single();
 
+  const id = crypto.randomUUID();
   const { error } = await supabase.from("pushes").insert({
     id,
     name: data.name,

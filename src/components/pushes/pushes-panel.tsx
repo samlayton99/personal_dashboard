@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useTransition } from "react";
-import { PushDistributionChart, type PushActionSlice } from "./push-distribution-chart";
+import { PushDistributionChart, CHART_COLORS, type PushActionSlice } from "./push-distribution-chart";
 import { PushTile } from "./push-tile";
 import { createPush } from "@/app/(dashboard)/first-principles/actions";
 import type { Database } from "@/types/database";
@@ -87,11 +87,12 @@ export function PushesPanel({
         <div className="grid h-full grid-cols-3 grid-rows-2 gap-2">
           <PushDistributionChart slices={pushActionDistribution} />
 
-          {activePushes.map((push) => (
+          {activePushes.map((push, i) => (
             <PushTile
               key={push.id}
               push={push}
               isSelected={push.id === selectedId}
+              color={CHART_COLORS[i % CHART_COLORS.length]}
               linkedObjectiveNames={
                 (pushObjectiveMap[push.id] ?? []).map(
                   (oid) => objectiveNameMap[oid] ?? "Unknown"
