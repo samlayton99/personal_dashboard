@@ -2,6 +2,7 @@
 
 import { MAX_ACTIVE_PUSHES, TODO_FUTURE_THRESHOLD_DAYS, DEFAULT_TODO_PRIORITY, REFLECTION_ESCAPE_HATCH_LENGTH, METRICS_WINDOW_DAYS } from "@/lib/constants";
 import { createClient } from "@/lib/supabase/server";
+import { createTempId, isTempId } from "@/lib/utils/temp-id";
 
 // ============================================================
 // OBJECTIVES
@@ -15,7 +16,7 @@ export async function createObjective(data: {
   other_notes?: string;
 }) {
   const supabase = await createClient();
-  const id = `objective_${Date.now()}`;
+  const id = createTempId("objective");
 
   const { data: maxOrder } = await supabase
     .from("objectives")
@@ -50,14 +51,14 @@ export async function updateObjective(
     retirement_note?: string | null;
   }
 ) {
-  if (id.startsWith("temp_")) return;
+  if (isTempId(id)) return;
   const supabase = await createClient();
   const { error } = await supabase.from("objectives").update(data).eq("id", id);
   if (error) throw new Error(error.message);
 }
 
 export async function reorderObjectives(orderedIds: string[]) {
-  const realIds = orderedIds.filter((id) => !id.startsWith("temp_"));
+  const realIds = orderedIds.filter((id) => !isTempId(id));
   if (realIds.length === 0) return;
   const supabase = await createClient();
   const updates = realIds.map((id, index) =>
@@ -119,7 +120,7 @@ export async function createTag(name: string) {
 }
 
 export async function updateObjectiveTags(objectiveId: string, tagIds: number[]) {
-  if (objectiveId.startsWith("temp_")) return;
+  if (isTempId(objectiveId)) return;
   const supabase = await createClient();
 
   await supabase.from("objective_tags").delete().eq("objective_id", objectiveId);
@@ -176,7 +177,7 @@ export async function createTodo(data: {
 }
 
 export async function toggleTodoComplete(id: string, isCompleted: boolean) {
-  if (id.startsWith("temp_")) return;
+  if (isTempId(id)) return;
   const supabase = await createClient();
   const { error } = await supabase
     .from("todos")
@@ -199,7 +200,7 @@ export async function updateTodo(
     sort_order?: number;
   }
 ) {
-  if (id.startsWith("temp_")) return;
+  if (isTempId(id)) return;
   const supabase = await createClient();
   const { error } = await supabase.from("todos").update(data).eq("id", id);
   if (error) throw new Error(error.message);
@@ -208,7 +209,7 @@ export async function updateTodo(
 export async function reorderTodos(
   updates: { id: string; panel: "now" | "in_progress" | "future"; sort_order: number }[]
 ) {
-  const realUpdates = updates.filter((u) => !u.id.startsWith("temp_"));
+  const realUpdates = updates.filter((u) => !isTempId(u.id));
   if (realUpdates.length === 0) return;
   const supabase = await createClient();
   const ops = realUpdates.map((u) =>
@@ -218,7 +219,7 @@ export async function reorderTodos(
 }
 
 export async function deleteTodo(id: string) {
-  if (id.startsWith("temp_")) return;
+  if (isTempId(id)) return;
   const supabase = await createClient();
   const { error } = await supabase.from("todos").delete().eq("id", id);
   if (error) throw new Error(error.message);
@@ -235,7 +236,7 @@ export async function createPush(data: {
   notes?: string;
 }): Promise<{ id: string } | { error: string }> {
   const supabase = await createClient();
-  const id = `push_${Date.now()}`;
+  const id = createTempId("push");
 
   const { count } = await supabase
     .from("pushes")
@@ -274,7 +275,7 @@ export async function updatePush(
     notes?: string | null;
   }
 ) {
-  if (id.startsWith("push_temp_")) return;
+  if (isTempId(id)) return;
   const supabase = await createClient();
   const { error } = await supabase.from("pushes").update(data).eq("id", id);
   if (error) throw new Error(error.message);
@@ -285,7 +286,7 @@ export async function retirePush(
   reason: "completed" | "failed" | "na",
   note: string
 ) {
-  if (id.startsWith("push_temp_")) return;
+  if (isTempId(id)) return;
   const supabase = await createClient();
 
   const { data: push } = await supabase
@@ -326,7 +327,7 @@ export async function resurrectPush(id: string) {
 }
 
 export async function deletePush(id: string) {
-  if (id.startsWith("push_temp_")) return;
+  if (isTempId(id)) return;
   const supabase = await createClient();
 
   await supabase.from("push_objective_links").delete().eq("push_id", id);
@@ -338,7 +339,7 @@ export async function deletePush(id: string) {
 }
 
 export async function updatePushObjectives(pushId: string, objectiveIds: string[]) {
-  if (pushId.startsWith("push_temp_")) return;
+  if (isTempId(pushId)) return;
   const supabase = await createClient();
 
   await supabase.from("push_objective_links").delete().eq("push_id", pushId);

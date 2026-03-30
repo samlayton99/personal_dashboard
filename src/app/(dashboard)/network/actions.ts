@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/types/database";
+import { isTempId } from "@/lib/utils/temp-id";
 
 type NetworkSection = Database["public"]["Enums"]["network_section"];
 
@@ -33,7 +34,7 @@ export async function createGroup(name: string): Promise<string> {
 }
 
 export async function updateGroup(id: string, name: string) {
-  if (id.startsWith("temp_")) return;
+  if (isTempId(id)) return;
   const supabase = await createClient();
   const { error } = await supabase
     .from("network_groups")
@@ -43,7 +44,7 @@ export async function updateGroup(id: string, name: string) {
 }
 
 export async function deleteGroup(id: string) {
-  if (id.startsWith("temp_")) return;
+  if (isTempId(id)) return;
   const supabase = await createClient();
   const { error } = await supabase
     .from("network_groups")
@@ -53,7 +54,7 @@ export async function deleteGroup(id: string) {
 }
 
 export async function reorderGroups(orderedIds: string[]) {
-  const realIds = orderedIds.filter((id) => !id.startsWith("temp_"));
+  const realIds = orderedIds.filter((id) => !isTempId(id));
   if (realIds.length === 0) return;
   const supabase = await createClient();
   const updates = realIds.map((id, index) =>
@@ -98,7 +99,7 @@ export async function createContact(data: {
 }
 
 export async function deleteContact(id: string) {
-  if (id.startsWith("temp_")) return;
+  if (isTempId(id)) return;
   const supabase = await createClient();
   const { error } = await supabase
     .from("network_contacts")
@@ -110,7 +111,7 @@ export async function deleteContact(id: string) {
 export async function reorderContacts(
   updates: { id: string; section: NetworkSection; sort_order: number }[]
 ) {
-  const realUpdates = updates.filter((u) => !u.id.startsWith("temp_"));
+  const realUpdates = updates.filter((u) => !isTempId(u.id));
   if (realUpdates.length === 0) return;
   const supabase = await createClient();
   const ops = realUpdates.map((u) =>
@@ -146,7 +147,7 @@ export async function deleteMeetings(ids: string[]) {
 }
 
 export async function markMetWith(id: string, notes?: string) {
-  if (id.startsWith("temp_")) return;
+  if (isTempId(id)) return;
   const supabase = await createClient();
 
   const { data: contact, error: fetchError } = await supabase
