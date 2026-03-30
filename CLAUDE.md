@@ -57,9 +57,12 @@ Both layers write to the same `events` table. The dashboard never depends on Ope
 │   │   ├── automations/
 │   │   └── layout/
 │   ├── lib/
-│   │   ├── supabase/      # Client, server, types
+│   │   ├── constants.ts   # All magic numbers and thresholds
+│   │   ├── supabase/      # Client, server, admin, middleware
+│   │   ├── hooks/         # Shared React hooks (useDndSensors, etc.)
 │   │   ├── agents/        # Agent prompt templates and logic
-│   │   └── utils/
+│   │   ├── utils/         # Pure utilities (dates, lock, temp-id, scoring)
+│   │   └── __tests__/     # Vitest unit tests
 │   └── types/
 ├── supabase/
 │   ├── migrations/
@@ -73,6 +76,8 @@ Both layers write to the same `events` table. The dashboard never depends on Ope
 npm run dev          # Start Next.js dev server
 npm run build        # Production build
 npm run lint         # ESLint
+npm test             # Run vitest tests
+npm run test:watch   # Run vitest in watch mode
 npx supabase start   # Local Supabase
 npx supabase db push # Apply migrations
 npx supabase gen types typescript --local > src/types/database.ts
@@ -89,6 +94,16 @@ npx supabase gen types typescript --local > src/types/database.ts
 - Agent API routes: `/api/agents/[agent-name]`
 - Edge functions for scheduled crons: `supabase/functions/`
 - Dates stored as UTC. Displayed in user's local timezone.
+
+## Shared Utilities & Patterns
+
+- **Constants**: All magic numbers live in `src/lib/constants.ts`. Never inline numeric thresholds.
+- **Temp IDs**: Use `createTempId(prefix)` and `isTempId(id)` from `src/lib/utils/temp-id.ts`. All temp IDs start with `temp_`.
+- **DnD sensors**: Use `useDndSensors()` from `src/lib/hooks/use-dnd-sensors.ts` instead of inline sensor setup. Pass `{ distance: N }` to customize activation distance.
+- **Date utilities**: `src/lib/utils/dates.ts` for display formatting. `src/lib/utils/lock.ts` for lock-system dates. No duplicate date functions.
+- **Supabase clients**: `src/lib/supabase/client.ts` (browser), `src/lib/supabase/server.ts` (server components/actions), `src/lib/supabase/admin.ts` (service role, server-only).
+- **Error handling in server actions**: Always throw on error. Never return `{ error: string }` -- callers use try/catch.
+- **Tests**: `vitest` for pure utility tests. Test files at `src/lib/__tests__/*.test.ts`.
 
 ## Database Tables (Summary)
 
