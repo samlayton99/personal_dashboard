@@ -44,7 +44,6 @@ interface NetworkGroupTileProps {
   initialMeetings: NetworkMeeting[];
   onDeleteGroup: (id: string) => void;
   onUpdateGroup: (id: string, name: string) => void;
-  isDragOverlay?: boolean;
 }
 
 export function NetworkGroupTile({
@@ -53,7 +52,6 @@ export function NetworkGroupTile({
   initialMeetings,
   onDeleteGroup,
   onUpdateGroup,
-  isDragOverlay,
 }: NetworkGroupTileProps) {
   const {
     attributes,
@@ -339,9 +337,9 @@ export function NetworkGroupTile({
       ref={setNodeRef}
       style={style}
       className={cn(
-        "flex flex-col rounded-lg border bg-card transition-shadow",
-        isDragging && "opacity-30",
-        isDragOverlay && "shadow-xl ring-2 ring-primary/20"
+        "flex flex-col rounded-lg border bg-card",
+        isDragging && "z-50 shadow-xl ring-2 ring-primary/20 opacity-90",
+        !isDragging && "transition-transform duration-200"
       )}
     >
       {/* Header -- drag handle area */}
