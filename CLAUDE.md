@@ -123,6 +123,25 @@ Read `docs/plan.md` for complete field definitions, relationships, and constrain
 - Modals and drawers slide from the right, never overlap primary content panels.
 - Subtle animations (150-200ms). Optimistic updates — no spinners over 300ms.
 
+## Performance Rules
+
+- **Never await in a loop.** If operations are independent, use `Promise.all()`. This is the single most impactful performance rule for this codebase.
+  ```typescript
+  // BAD: N sequential round-trips
+  for (const item of items) {
+    await supabase.from("table").update(data).eq("id", item.id);
+  }
+
+  // GOOD: 1 parallel batch
+  await Promise.all(items.map((item) =>
+    supabase.from("table").update(data).eq("id", item.id)
+  ));
+  ```
+- **Cascade deletes: parallelize link deletions, then delete the entity.** Links are independent of each other but the entity delete must come last.
+- **Page-level data fetches must use `Promise.all()`.** See `first-principles/page.tsx` for the pattern (12 queries in parallel).
+- **Realtime subscriptions**: Subscribe at the highest common ancestor, not per-tile. One channel per table is better than N channels for N tiles.
+- **Middleware**: The `system_state` lock check runs on every navigation. Keep it as a single lightweight query. Don't add more middleware DB queries without caching.
+
 ## Do Not
 
 - Do NOT add or rename database tables without confirming with the user.
