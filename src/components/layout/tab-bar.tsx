@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
 const tabs = [
@@ -16,7 +16,7 @@ const tabs = [
 export function TabBar() {
   const pathname = usePathname();
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = createBrowserSupabaseClient();
 
   async function handleLogout() {
     await supabase.auth.signOut();

@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { METRICS_WINDOW_DAYS, ACTION_DISTRIBUTION_DAYS, FEATURED_ACTIONS_PER_GROUP } from "@/lib/constants";
 import { getSystemState } from "@/lib/supabase/cached-queries";
 import { computeFeaturedActionScore } from "@/lib/utils/scoring";
@@ -9,7 +9,7 @@ import type { FeaturedAction } from "@/types/featured-actions";
 export const dynamic = "force-dynamic";
 
 export default async function FirstPrinciplesPage() {
-  const supabase = await createClient();
+  const supabase = await createServerSupabaseClient();
 
   const ninetyDaysAgo = new Date();
   ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - METRICS_WINDOW_DAYS);

@@ -2,7 +2,7 @@
 
 import { useEffect, useCallback, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { useRealtime } from "@/lib/supabase/use-realtime";
 import { shouldTriggerLock } from "@/lib/utils/lock";
 
@@ -59,7 +59,7 @@ export function LockWatcher({
   // On mount: verify lock state directly from DB (don't trust server cache)
   useEffect(() => {
     async function verifyLockState() {
-      const supabase = createClient();
+      const supabase = createBrowserSupabaseClient();
       const { data } = await supabase
         .from("system_state")
         .select("is_locked, last_reflection_date")
@@ -83,7 +83,7 @@ export function LockWatcher({
   // 2. Is the DB locked (catch any missed realtime updates)?
   useEffect(() => {
     async function checkLock() {
-      const supabase = createClient();
+      const supabase = createBrowserSupabaseClient();
 
       // If not currently locked, check if we should trigger
       if (!isLockedRef.current) {

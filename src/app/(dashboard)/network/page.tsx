@@ -1,10 +1,10 @@
-import { createClient } from "@/lib/supabase/server";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { NetworkPanel } from "@/components/network/network-panel";
 
 export const dynamic = "force-dynamic";
 
 export default async function NetworkPage() {
-  const supabase = await createClient();
+  const supabase = await createServerSupabaseClient();
 
   const [groupsRes, contactsRes, meetingsRes] = await Promise.all([
     supabase.from("network_groups").select("*").order("sort_order"),

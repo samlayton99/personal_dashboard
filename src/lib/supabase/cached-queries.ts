@@ -1,8 +1,8 @@
 import { cache } from "react";
-import { createClient } from "./server";
+import { createServerSupabaseClient } from "./server";
 
 export const getSystemState = cache(async () => {
-  const supabase = await createClient();
+  const supabase = await createServerSupabaseClient();
   const { data, error } = await supabase
     .from("system_state")
     .select("*")

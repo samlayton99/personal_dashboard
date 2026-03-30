@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 import type { Database } from "@/types/database";
 import { isTempId } from "@/lib/utils/temp-id";
 
@@ -11,7 +11,7 @@ type NetworkSection = Database["public"]["Enums"]["network_section"];
 // ============================================================
 
 export async function createGroup(name: string): Promise<string> {
-  const supabase = await createClient();
+  const supabase = await createServerSupabaseClient();
 
   const { data: maxOrder } = await supabase
     .from("network_groups")
@@ -35,7 +35,7 @@ export async function createGroup(name: string): Promise<string> {
 
 export async function updateGroup(id: string, name: string) {
   if (isTempId(id)) return;
-  const supabase = await createClient();
+  const supabase = await createServerSupabaseClient();
   const { error } = await supabase
     .from("network_groups")
     .update({ name })
@@ -45,7 +45,7 @@ export async function updateGroup(id: string, name: string) {
 
 export async function deleteGroup(id: string) {
   if (isTempId(id)) return;
-  const supabase = await createClient();
+  const supabase = await createServerSupabaseClient();
   const { error } = await supabase
     .from("network_groups")
     .delete()
@@ -56,7 +56,7 @@ export async function deleteGroup(id: string) {
 export async function reorderGroups(orderedIds: string[]) {
   const realIds = orderedIds.filter((id) => !isTempId(id));
   if (realIds.length === 0) return;
-  const supabase = await createClient();
+  const supabase = await createServerSupabaseClient();
   const updates = realIds.map((id, index) =>
     supabase.from("network_groups").update({ sort_order: index }).eq("id", id)
   );
@@ -72,7 +72,7 @@ export async function createContact(data: {
   name: string;
   section: NetworkSection;
 }): Promise<string> {
-  const supabase = await createClient();
+  const supabase = await createServerSupabaseClient();
 
   const { data: maxOrder } = await supabase
     .from("network_contacts")
@@ -100,7 +100,7 @@ export async function createContact(data: {
 
 export async function deleteContact(id: string) {
   if (isTempId(id)) return;
-  const supabase = await createClient();
+  const supabase = await createServerSupabaseClient();
   const { error } = await supabase
     .from("network_contacts")
     .delete()
@@ -113,7 +113,7 @@ export async function reorderContacts(
 ) {
   const realUpdates = updates.filter((u) => !isTempId(u.id));
   if (realUpdates.length === 0) return;
-  const supabase = await createClient();
+  const supabase = await createServerSupabaseClient();
   const ops = realUpdates.map((u) =>
     supabase
       .from("network_contacts")
@@ -128,7 +128,7 @@ export async function reorderContacts(
 // ============================================================
 
 export async function deleteMeeting(id: string) {
-  const supabase = await createClient();
+  const supabase = await createServerSupabaseClient();
   const { error } = await supabase
     .from("network_meetings")
     .delete()
@@ -138,7 +138,7 @@ export async function deleteMeeting(id: string) {
 
 export async function deleteMeetings(ids: string[]) {
   if (ids.length === 0) return;
-  const supabase = await createClient();
+  const supabase = await createServerSupabaseClient();
   const { error } = await supabase
     .from("network_meetings")
     .delete()
@@ -148,7 +148,7 @@ export async function deleteMeetings(ids: string[]) {
 
 export async function markMetWith(id: string, notes?: string) {
   if (isTempId(id)) return;
-  const supabase = await createClient();
+  const supabase = await createServerSupabaseClient();
 
   const { data: contact, error: fetchError } = await supabase
     .from("network_contacts")

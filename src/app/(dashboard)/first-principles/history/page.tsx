@@ -1,8 +1,8 @@
-import { createClient } from "@/lib/supabase/server";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { HistoryPageClient } from "./client";
 
 export default async function HistoryPage() {
-  const supabase = await createClient();
+  const supabase = await createServerSupabaseClient();
 
   const [objRes, pushRes, actionRes, meetingsRes, groupsRes] = await Promise.all([
     supabase

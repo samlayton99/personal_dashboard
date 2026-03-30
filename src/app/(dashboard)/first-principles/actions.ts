@@ -1,7 +1,7 @@
 "use server";
 
 import { MAX_ACTIVE_PUSHES, TODO_FUTURE_THRESHOLD_DAYS, DEFAULT_TODO_PRIORITY, REFLECTION_ESCAPE_HATCH_LENGTH, METRICS_WINDOW_DAYS } from "@/lib/constants";
-import { createClient } from "@/lib/supabase/server";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { createTempId, isTempId } from "@/lib/utils/temp-id";
 
 // ============================================================
@@ -15,7 +15,7 @@ export async function createObjective(data: {
   hypothesis?: string;
   other_notes?: string;
 }) {
-  const supabase = await createClient();
+  const supabase = await createServerSupabaseClient();
   const id = createTempId("objective");
 
   const { data: maxOrder } = await supabase
@@ -52,7 +52,7 @@ export async function updateObjective(
   }
 ) {
   if (isTempId(id)) return;
-  const supabase = await createClient();
+  const supabase = await createServerSupabaseClient();
   const { error } = await supabase.from("objectives").update(data).eq("id", id);
   if (error) throw new Error(error.message);
 }
@@ -60,7 +60,7 @@ export async function updateObjective(
 export async function reorderObjectives(orderedIds: string[]) {
   const realIds = orderedIds.filter((id) => !isTempId(id));
   if (realIds.length === 0) return;
-  const supabase = await createClient();
+  const supabase = await createServerSupabaseClient();
   const updates = realIds.map((id, index) =>
     supabase.from("objectives").update({ sort_order: index }).eq("id", id)
   );
@@ -68,7 +68,7 @@ export async function reorderObjectives(orderedIds: string[]) {
 }
 
 export async function retireObjective(id: string, retirementNote: string) {
-  const supabase = await createClient();
+  const supabase = await createServerSupabaseClient();
 
   const { error } = await supabase
     .from("objectives")
@@ -85,7 +85,7 @@ export async function retireObjective(id: string, retirementNote: string) {
 }
 
 export async function resurrectObjective(id: string) {
-  const supabase = await createClient();
+  const supabase = await createServerSupabaseClient();
   const { error } = await supabase
     .from("objectives")
     .update({ status: "active", retirement_note: null })
@@ -94,7 +94,7 @@ export async function resurrectObjective(id: string) {
 }
 
 export async function deleteObjective(id: string) {
-  const supabase = await createClient();
+  const supabase = await createServerSupabaseClient();
 
   await supabase.from("objective_tags").delete().eq("objective_id", id);
   await supabase.from("push_objective_links").delete().eq("objective_id", id);
@@ -109,7 +109,7 @@ export async function deleteObjective(id: string) {
 // ============================================================
 
 export async function createTag(name: string) {
-  const supabase = await createClient();
+  const supabase = await createServerSupabaseClient();
   const { data, error } = await supabase
     .from("tags")
     .insert({ name })
@@ -121,7 +121,7 @@ export async function createTag(name: string) {
 
 export async function updateObjectiveTags(objectiveId: string, tagIds: number[]) {
   if (isTempId(objectiveId)) return;
-  const supabase = await createClient();
+  const supabase = await createServerSupabaseClient();
 
   await supabase.from("objective_tags").delete().eq("objective_id", objectiveId);
 
@@ -143,7 +143,7 @@ export async function createTodo(data: {
   priority?: number;
   due_date?: string;
 }) {
-  const supabase = await createClient();
+  const supabase = await createServerSupabaseClient();
 
   let panel = data.panel;
   if (data.due_date) {
@@ -178,7 +178,7 @@ export async function createTodo(data: {
 
 export async function toggleTodoComplete(id: string, isCompleted: boolean) {
   if (isTempId(id)) return;
-  const supabase = await createClient();
+  const supabase = await createServerSupabaseClient();
   const { error } = await supabase
     .from("todos")
     .update({
@@ -201,7 +201,7 @@ export async function updateTodo(
   }
 ) {
   if (isTempId(id)) return;
-  const supabase = await createClient();
+  const supabase = await createServerSupabaseClient();
   const { error } = await supabase.from("todos").update(data).eq("id", id);
   if (error) throw new Error(error.message);
 }
@@ -211,7 +211,7 @@ export async function reorderTodos(
 ) {
   const realUpdates = updates.filter((u) => !isTempId(u.id));
   if (realUpdates.length === 0) return;
-  const supabase = await createClient();
+  const supabase = await createServerSupabaseClient();
   const ops = realUpdates.map((u) =>
     supabase.from("todos").update({ panel: u.panel, sort_order: u.sort_order }).eq("id", u.id)
   );
@@ -220,7 +220,7 @@ export async function reorderTodos(
 
 export async function deleteTodo(id: string) {
   if (isTempId(id)) return;
-  const supabase = await createClient();
+  const supabase = await createServerSupabaseClient();
   const { error } = await supabase.from("todos").delete().eq("id", id);
   if (error) throw new Error(error.message);
 }
@@ -235,7 +235,7 @@ export async function createPush(data: {
   todos_notes?: string;
   notes?: string;
 }): Promise<string> {
-  const supabase = await createClient();
+  const supabase = await createServerSupabaseClient();
   const id = createTempId("push");
 
   const { count } = await supabase
@@ -276,7 +276,7 @@ export async function updatePush(
   }
 ) {
   if (isTempId(id)) return;
-  const supabase = await createClient();
+  const supabase = await createServerSupabaseClient();
   const { error } = await supabase.from("pushes").update(data).eq("id", id);
   if (error) throw new Error(error.message);
 }
@@ -287,7 +287,7 @@ export async function retirePush(
   note: string
 ) {
   if (isTempId(id)) return;
-  const supabase = await createClient();
+  const supabase = await createServerSupabaseClient();
 
   const { data: push } = await supabase
     .from("pushes")
@@ -318,7 +318,7 @@ export async function retirePush(
 }
 
 export async function resurrectPush(id: string) {
-  const supabase = await createClient();
+  const supabase = await createServerSupabaseClient();
   const { error } = await supabase
     .from("pushes")
     .update({ status: "active", retirement_reason: null, retirement_note: null })
@@ -328,7 +328,7 @@ export async function resurrectPush(id: string) {
 
 export async function deletePush(id: string) {
   if (isTempId(id)) return;
-  const supabase = await createClient();
+  const supabase = await createServerSupabaseClient();
 
   await supabase.from("push_objective_links").delete().eq("push_id", id);
   await supabase.from("action_push_links").delete().eq("push_id", id);
@@ -340,7 +340,7 @@ export async function deletePush(id: string) {
 
 export async function updatePushObjectives(pushId: string, objectiveIds: string[]) {
   if (isTempId(pushId)) return;
-  const supabase = await createClient();
+  const supabase = await createServerSupabaseClient();
 
   await supabase.from("push_objective_links").delete().eq("push_id", pushId);
 
@@ -363,7 +363,7 @@ export async function createReflection(data: {
   date: string;
   covers_since: string;
 }): Promise<string> {
-  const supabase = await createClient();
+  const supabase = await createServerSupabaseClient();
 
   const { data: reflection, error } = await supabase
     .from("daily_reflections")
@@ -410,7 +410,7 @@ export async function finalizeActions(data: {
     status: "accepted" | "edited" | "rejected";
   }>;
 }) {
-  const supabase = await createClient();
+  const supabase = await createServerSupabaseClient();
 
   for (const action of data.actions) {
     if (action.status === "rejected") {
@@ -491,7 +491,7 @@ export async function finalizeActions(data: {
 }
 
 export async function deleteAction(id: string) {
-  const supabase = await createClient();
+  const supabase = await createServerSupabaseClient();
 
   await supabase.from("action_push_links").delete().eq("action_id", id);
   await supabase.from("action_objective_links").delete().eq("action_id", id);
@@ -503,7 +503,7 @@ export async function deleteAction(id: string) {
 
 export async function deleteActions(ids: string[]) {
   if (ids.length === 0) return;
-  const supabase = await createClient();
+  const supabase = await createServerSupabaseClient();
 
   await supabase.from("action_push_links").delete().in("action_id", ids);
   await supabase.from("action_objective_links").delete().in("action_id", ids);
@@ -514,7 +514,7 @@ export async function deleteActions(ids: string[]) {
 }
 
 export async function recomputeObjectiveMetrics() {
-  const supabase = await createClient();
+  const supabase = await createServerSupabaseClient();
 
   const ninetyDaysAgo = new Date();
   ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - METRICS_WINDOW_DAYS);

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { createClient } from "./client";
+import { createBrowserSupabaseClient } from "./client";
 import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 
 type PostgresChangeEvent = "INSERT" | "UPDATE" | "DELETE" | "*";
@@ -15,7 +15,7 @@ interface UseRealtimeOptions {
 
 export function useRealtime({ table, event = "*", schema = "public", onPayload }: UseRealtimeOptions) {
   useEffect(() => {
-    const supabase = createClient();
+    const supabase = createBrowserSupabaseClient();
     const channel = supabase
       .channel(`realtime:${table}`)
       .on(
