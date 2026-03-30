@@ -59,7 +59,7 @@ export function PushTile({
     >
       {color && (
         <div
-          className="flex h-6 shrink-0 items-center justify-center"
+          className="flex h-6 shrink-0 items-center px-2"
           style={{ backgroundColor: color }}
         >
           <span className="truncate rounded-full bg-white px-2.5 py-0.5 text-xs font-semibold leading-none text-foreground">
