@@ -52,6 +52,16 @@ export async function deleteGroup(id: string) {
   if (error) throw new Error(error.message);
 }
 
+export async function reorderGroups(orderedIds: string[]) {
+  const realIds = orderedIds.filter((id) => !id.startsWith("temp_"));
+  if (realIds.length === 0) return;
+  const supabase = await createClient();
+  const updates = realIds.map((id, index) =>
+    supabase.from("network_groups").update({ sort_order: index }).eq("id", id)
+  );
+  await Promise.all(updates);
+}
+
 // ============================================================
 // CONTACTS
 // ============================================================
@@ -115,6 +125,25 @@ export async function reorderContacts(
 // ============================================================
 // MEETINGS (Met With)
 // ============================================================
+
+export async function deleteMeeting(id: string) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("network_meetings")
+    .delete()
+    .eq("id", id);
+  if (error) throw new Error(error.message);
+}
+
+export async function deleteMeetings(ids: string[]) {
+  if (ids.length === 0) return;
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("network_meetings")
+    .delete()
+    .in("id", ids);
+  if (error) throw new Error(error.message);
+}
 
 export async function markMetWith(id: string, notes?: string) {
   if (id.startsWith("temp_")) return;

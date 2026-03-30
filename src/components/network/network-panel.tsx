@@ -1,6 +1,23 @@
 "use client";
 
 import { useState, useTransition, useCallback } from "react";
+import {
+  DndContext,
+  DragOverlay,
+  closestCenter,
+  PointerSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+  type DragStartEvent,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  rectSortingStrategy,
+  arrayMove,
+} from "@dnd-kit/sortable";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { NetworkGroupTile } from "./network-group-tile";
@@ -8,6 +25,7 @@ import {
   createGroup,
   deleteGroup,
   updateGroup,
+  reorderGroups,
 } from "@/app/(dashboard)/network/actions";
 import { useRealtime } from "@/lib/supabase/use-realtime";
 import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
@@ -31,7 +49,13 @@ export function NetworkPanel({
   const [groups, setGroups] = useState(initialGroups);
   const [showNewGroup, setShowNewGroup] = useState(false);
   const [newGroupName, setNewGroupName] = useState("");
+  const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [, startTransition] = useTransition();
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
 
   // Realtime: groups
   useRealtime({
@@ -42,7 +66,6 @@ export function NetworkPanel({
           const newGroup = payload.new as unknown as NetworkGroup;
           setGroups((prev) => {
             if (prev.some((g) => g.id === newGroup.id)) return prev;
-            // Replace temp group if matching name
             const matchIdx = prev.findIndex(
               (g) => g.id.startsWith("temp_") && g.name === newGroup.name
             );
@@ -107,7 +130,42 @@ export function NetworkPanel({
     startTransition(() => updateGroup(id, name));
   }
 
+  function handleDragStart(event: DragStartEvent) {
+    setActiveDragId(event.active.id as string);
+  }
+
+  function handleDragEnd(event: DragEndEvent) {
+    setActiveDragId(null);
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    setGroups((prev) => {
+      const sorted = [...prev].sort((a, b) => a.sort_order - b.sort_order);
+      const oldIndex = sorted.findIndex((g) => g.id === active.id);
+      const newIndex = sorted.findIndex((g) => g.id === over.id);
+      if (oldIndex === -1 || newIndex === -1) return prev;
+
+      const reordered = arrayMove(sorted, oldIndex, newIndex).map((g, i) => ({
+        ...g,
+        sort_order: i,
+      }));
+
+      startTransition(() =>
+        reorderGroups(reordered.map((g) => g.id))
+      );
+
+      return reordered;
+    });
+  }
+
+  function handleDragCancel() {
+    setActiveDragId(null);
+  }
+
   const sortedGroups = [...groups].sort((a, b) => a.sort_order - b.sort_order);
+  const activeDragGroup = activeDragId
+    ? sortedGroups.find((g) => g.id === activeDragId) ?? null
+    : null;
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
@@ -147,22 +205,54 @@ export function NetworkPanel({
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-4">
-            {sortedGroups.map((group) => (
-              <NetworkGroupTile
-                key={group.id}
-                group={group}
-                initialContacts={initialContacts.filter(
-                  (c) => c.group_id === group.id
-                )}
-                initialMeetings={initialMeetings.filter(
-                  (m) => m.group_id === group.id
-                )}
-                onDeleteGroup={handleDeleteGroup}
-                onUpdateGroup={handleUpdateGroup}
-              />
-            ))}
-          </div>
+          <DndContext
+            id="network-groups-dnd"
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+            onDragCancel={handleDragCancel}
+          >
+            <SortableContext
+              items={sortedGroups.map((g) => g.id)}
+              strategy={rectSortingStrategy}
+            >
+              <div className="grid grid-cols-2 gap-4">
+                {sortedGroups.map((group) => (
+                  <NetworkGroupTile
+                    key={group.id}
+                    group={group}
+                    initialContacts={initialContacts.filter(
+                      (c) => c.group_id === group.id
+                    )}
+                    initialMeetings={initialMeetings.filter(
+                      (m) => m.group_id === group.id
+                    )}
+                    onDeleteGroup={handleDeleteGroup}
+                    onUpdateGroup={handleUpdateGroup}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+            <DragOverlay dropAnimation={null}>
+              {activeDragGroup ? (
+                <div className="w-full">
+                  <NetworkGroupTile
+                    group={activeDragGroup}
+                    initialContacts={initialContacts.filter(
+                      (c) => c.group_id === activeDragGroup.id
+                    )}
+                    initialMeetings={initialMeetings.filter(
+                      (m) => m.group_id === activeDragGroup.id
+                    )}
+                    onDeleteGroup={() => {}}
+                    onUpdateGroup={() => {}}
+                    isDragOverlay
+                  />
+                </div>
+              ) : null}
+            </DragOverlay>
+          </DndContext>
         )}
       </div>
     </div>

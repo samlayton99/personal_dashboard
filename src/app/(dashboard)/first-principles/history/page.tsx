@@ -4,7 +4,7 @@ import { HistoryPageClient } from "./client";
 export default async function HistoryPage() {
   const supabase = await createClient();
 
-  const [objRes, pushRes, actionRes] = await Promise.all([
+  const [objRes, pushRes, actionRes, meetingsRes, groupsRes] = await Promise.all([
     supabase
       .from("objectives")
       .select("*")
@@ -20,6 +20,14 @@ export default async function HistoryPage() {
       .select("*")
       .order("date", { ascending: false })
       .limit(100),
+    supabase
+      .from("network_meetings")
+      .select("*")
+      .order("met_at", { ascending: false }),
+    supabase
+      .from("network_groups")
+      .select("id, name")
+      .order("name"),
   ]);
 
   return (
@@ -27,6 +35,8 @@ export default async function HistoryPage() {
       objectives={objRes.data ?? []}
       pushes={pushRes.data ?? []}
       actions={actionRes.data ?? []}
+      meetings={meetingsRes.data ?? []}
+      groupNames={(groupsRes.data ?? []).map((g) => g.name)}
     />
   );
 }

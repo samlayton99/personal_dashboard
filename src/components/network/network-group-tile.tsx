@@ -13,7 +13,10 @@ import {
   type DragOverEvent,
   type DragEndEvent,
 } from "@dnd-kit/core";
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { sortableKeyboardCoordinates, arrayMove } from "@dnd-kit/sortable";
+import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { NetworkSectionColumn } from "./network-section";
 import { NetworkContactItem } from "./network-contact-item";
@@ -41,6 +44,7 @@ interface NetworkGroupTileProps {
   initialMeetings: NetworkMeeting[];
   onDeleteGroup: (id: string) => void;
   onUpdateGroup: (id: string, name: string) => void;
+  isDragOverlay?: boolean;
 }
 
 export function NetworkGroupTile({
@@ -49,7 +53,22 @@ export function NetworkGroupTile({
   initialMeetings,
   onDeleteGroup,
   onUpdateGroup,
+  isDragOverlay,
 }: NetworkGroupTileProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: group.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
   const [contacts, setContacts] = useState(initialContacts);
   const [meetings, setMeetings] = useState(initialMeetings);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
@@ -316,9 +335,21 @@ export function NetworkGroupTile({
   const metWithContact = metWithId ? contacts.find((c) => c.id === metWithId) : null;
 
   return (
-    <div className="flex flex-col rounded-lg border bg-card">
-      {/* Header */}
-      <div className="flex h-10 shrink-0 items-center justify-between rounded-t-lg bg-primary px-3">
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        "flex flex-col rounded-lg border bg-card transition-shadow",
+        isDragging && "opacity-30",
+        isDragOverlay && "shadow-xl ring-2 ring-primary/20"
+      )}
+    >
+      {/* Header -- drag handle area */}
+      <div
+        {...attributes}
+        {...listeners}
+        className="flex h-10 shrink-0 items-center justify-between rounded-t-lg bg-primary px-3 cursor-grab active:cursor-grabbing"
+      >
         {editingName ? (
           <input
             autoFocus
@@ -332,18 +363,28 @@ export function NetworkGroupTile({
                 setEditingName(false);
               }
             }}
+            onClick={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
             className="bg-transparent text-sm font-semibold text-primary-foreground outline-none border-b border-primary-foreground/40 w-full mr-2"
           />
         ) : (
           <h2
-            onClick={() => setEditingName(true)}
+            onClick={(e) => {
+              e.stopPropagation();
+              setEditingName(true);
+            }}
+            onPointerDown={(e) => e.stopPropagation()}
             className="text-sm font-semibold text-primary-foreground cursor-pointer hover:opacity-80"
           >
             {group.name}
           </h2>
         )}
         <button
-          onClick={() => onDeleteGroup(group.id)}
+          onClick={(e) => {
+            e.stopPropagation();
+            onDeleteGroup(group.id);
+          }}
+          onPointerDown={(e) => e.stopPropagation()}
           className="text-primary-foreground/60 hover:text-primary-foreground transition-colors cursor-pointer"
         >
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -395,7 +436,7 @@ export function NetworkGroupTile({
           onDragEnd={handleDragEnd}
           onDragCancel={handleDragCancel}
         >
-          <div className="grid h-full grid-cols-3 gap-2" style={{ minHeight: "180px" }}>
+          <div className="grid h-full grid-cols-3 gap-2" style={{ minHeight: "306px" }}>
             {SECTIONS.map((section) => (
               <NetworkSectionColumn
                 key={section}
