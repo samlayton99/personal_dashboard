@@ -62,19 +62,17 @@ export function PushesPanel({
     onPushesChange((prev) => [...prev, newPush]);
 
     startTransition(async () => {
-      const result = await createPush({ name: "New Push" });
-      creatingRef.current = false;
-
-      if ("error" in result) {
+      try {
+        const id = await createPush({ name: "New Push" });
+        creatingRef.current = false;
+        onPushesChange((prev) =>
+          prev.map((p) => (p.id === tempId ? { ...p, id } : p))
+        );
+        onSelect(id);
+      } catch {
+        creatingRef.current = false;
         onPushesChange((prev) => prev.filter((p) => p.id !== tempId));
-        return;
       }
-
-      // Replace temp with real ID
-      onPushesChange((prev) =>
-        prev.map((p) => (p.id === tempId ? { ...p, id: result.id } : p))
-      );
-      onSelect(result.id);
     });
   }
 

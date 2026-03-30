@@ -234,7 +234,7 @@ export async function createPush(data: {
   description?: string;
   todos_notes?: string;
   notes?: string;
-}): Promise<{ id: string } | { error: string }> {
+}): Promise<string> {
   const supabase = await createClient();
   const id = createTempId("push");
 
@@ -244,7 +244,7 @@ export async function createPush(data: {
     .eq("status", "active");
 
   if ((count ?? 0) >= MAX_ACTIVE_PUSHES) {
-    return { error: "Maximum 5 active pushes allowed" };
+    throw new Error(`Maximum ${MAX_ACTIVE_PUSHES} active pushes allowed`);
   }
 
   const { data: maxOrder } = await supabase
@@ -263,8 +263,8 @@ export async function createPush(data: {
     sort_order: (maxOrder?.sort_order ?? -1) + 1,
   });
 
-  if (error) return { error: error.message };
-  return { id };
+  if (error) throw new Error(error.message);
+  return id;
 }
 
 export async function updatePush(
