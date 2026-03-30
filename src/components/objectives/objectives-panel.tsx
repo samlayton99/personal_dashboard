@@ -4,17 +4,13 @@ import { useState, useTransition } from "react";
 import {
   DndContext,
   closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
   type DragEndEvent,
 } from "@dnd-kit/core";
 import {
   SortableContext,
-  sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
+import { useDndSensors } from "@/lib/hooks/use-dnd-sensors";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ObjectiveTile } from "./objective-tile";
@@ -49,10 +45,7 @@ export function ObjectivesPanel({
   const [sortMode, setSortMode] = useState<SortMode>("manual");
   const [isPending, startTransition] = useTransition();
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
-  );
+  const sensors = useDndSensors();
 
   const sortedObjectives = getSorted(objectives, sortMode);
 

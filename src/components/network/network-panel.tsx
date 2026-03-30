@@ -4,18 +4,14 @@ import { useState, useTransition, useCallback } from "react";
 import {
   DndContext,
   closestCenter,
-  PointerSensor,
-  KeyboardSensor,
-  useSensor,
-  useSensors,
   type DragEndEvent,
 } from "@dnd-kit/core";
 import {
   SortableContext,
-  sortableKeyboardCoordinates,
   rectSortingStrategy,
   arrayMove,
 } from "@dnd-kit/sortable";
+import { useDndSensors } from "@/lib/hooks/use-dnd-sensors";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { NetworkGroupTile } from "./network-group-tile";
@@ -50,10 +46,7 @@ export function NetworkPanel({
   const [newGroupName, setNewGroupName] = useState("");
   const [, startTransition] = useTransition();
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
-  );
+  const sensors = useDndSensors({ distance: 8 });
 
   // Realtime: groups
   useRealtime({

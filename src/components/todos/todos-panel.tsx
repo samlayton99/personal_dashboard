@@ -5,15 +5,12 @@ import {
   DndContext,
   DragOverlay,
   closestCorners,
-  PointerSensor,
-  KeyboardSensor,
-  useSensor,
-  useSensors,
   type DragStartEvent,
   type DragOverEvent,
   type DragEndEvent,
 } from "@dnd-kit/core";
-import { sortableKeyboardCoordinates, arrayMove } from "@dnd-kit/sortable";
+import { arrayMove } from "@dnd-kit/sortable";
+import { useDndSensors } from "@/lib/hooks/use-dnd-sensors";
 import { TodoColumn } from "./todo-column";
 import { TodoItem } from "./todo-item";
 import {
@@ -65,10 +62,7 @@ export function TodosPanel({ initialTodos }: TodosPanelProps) {
   const [, startTransition] = useTransition();
   const dragSourcePanel = useRef<Panel | null>(null);
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
-  );
+  const sensors = useDndSensors();
 
   const activeDragTodo = activeDragId ? todos.find((t) => t.id === activeDragId) ?? null : null;
 

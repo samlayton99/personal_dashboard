@@ -5,17 +5,14 @@ import {
   DndContext,
   DragOverlay,
   closestCorners,
-  PointerSensor,
-  KeyboardSensor,
-  useSensor,
-  useSensors,
   type DragStartEvent,
   type DragOverEvent,
   type DragEndEvent,
 } from "@dnd-kit/core";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { sortableKeyboardCoordinates, arrayMove } from "@dnd-kit/sortable";
+import { arrayMove } from "@dnd-kit/sortable";
+import { useDndSensors } from "@/lib/hooks/use-dnd-sensors";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { NetworkSectionColumn } from "./network-section";
@@ -80,10 +77,7 @@ export function NetworkGroupTile({
   const pendingDeletesRef = useRef<Set<string>>(new Set());
   const pendingCreatesRef = useRef<Map<string, string>>(new Map());
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
-  );
+  const sensors = useDndSensors();
 
   const activeDragContact = activeDragId
     ? contacts.find((c) => c.id === activeDragId) ?? null
