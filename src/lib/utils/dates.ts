@@ -6,14 +6,6 @@ export function toLocalDateTime(utcDate: string): string {
   return new Date(utcDate).toLocaleString();
 }
 
-export function isMoreThanNDaysOut(date: string, n: number): boolean {
-  const target = new Date(date);
-  const now = new Date();
-  const diffMs = target.getTime() - now.getTime();
-  const diffDays = diffMs / (1000 * 60 * 60 * 24);
-  return diffDays > n;
-}
-
 export function startOfWeek(): Date {
   const now = new Date();
   const day = now.getDay();
@@ -27,8 +19,4 @@ export function startOfWeek(): Date {
 export function startOfMonth(): Date {
   const now = new Date();
   return new Date(now.getFullYear(), now.getMonth(), 1);
-}
-
-export function todayDateString(): string {
-  return new Date().toISOString().split("T")[0];
 }

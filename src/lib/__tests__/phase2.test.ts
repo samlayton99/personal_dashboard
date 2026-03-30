@@ -277,7 +277,7 @@ function testPromptBuilders() {
 // 6. Date utility tests
 // ============================================================
 
-import { startOfWeek, startOfMonth, todayDateString } from "../utils/dates";
+import { startOfWeek, startOfMonth } from "../utils/dates";
 
 function testDateUtils() {
   console.log("\n--- Date Utility Tests ---");
@@ -291,8 +291,8 @@ function testDateUtils() {
   console.assert(month instanceof Date, "startOfMonth returns Date");
   console.assert(month.getDate() === 1, "startOfMonth is 1st");
 
-  const today = todayDateString();
-  console.assert(/^\d{4}-\d{2}-\d{2}$/.test(today), `todayDateString format: ${today}`);
+  const today = getLocalDateString();
+  console.assert(/^\d{4}-\d{2}-\d{2}$/.test(today), `getLocalDateString format: ${today}`);
 
   console.log("Date utility tests passed");
 }
