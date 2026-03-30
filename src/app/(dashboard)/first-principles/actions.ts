@@ -96,9 +96,12 @@ export async function resurrectObjective(id: string) {
 export async function deleteObjective(id: string) {
   const supabase = await createServerSupabaseClient();
 
-  await supabase.from("objective_tags").delete().eq("objective_id", id);
-  await supabase.from("push_objective_links").delete().eq("objective_id", id);
-  await supabase.from("action_objective_links").delete().eq("objective_id", id);
+  // Delete all links in parallel, then delete the objective
+  await Promise.all([
+    supabase.from("objective_tags").delete().eq("objective_id", id),
+    supabase.from("push_objective_links").delete().eq("objective_id", id),
+    supabase.from("action_objective_links").delete().eq("objective_id", id),
+  ]);
 
   const { error } = await supabase.from("objectives").delete().eq("id", id);
   if (error) throw new Error(error.message);
@@ -330,9 +333,12 @@ export async function deletePush(id: string) {
   if (isTempId(id)) return;
   const supabase = await createServerSupabaseClient();
 
-  await supabase.from("push_objective_links").delete().eq("push_id", id);
-  await supabase.from("action_push_links").delete().eq("push_id", id);
-  await supabase.from("todos").update({ push_id: null }).eq("push_id", id);
+  // Clear all references in parallel, then delete the push
+  await Promise.all([
+    supabase.from("push_objective_links").delete().eq("push_id", id),
+    supabase.from("action_push_links").delete().eq("push_id", id),
+    supabase.from("todos").update({ push_id: null }).eq("push_id", id),
+  ]);
 
   const { error } = await supabase.from("pushes").delete().eq("id", id);
   if (error) throw new Error(error.message);
@@ -412,57 +418,54 @@ export async function finalizeActions(data: {
 }) {
   const supabase = await createServerSupabaseClient();
 
-  for (const action of data.actions) {
+  // Process all actions in parallel — each action's operations are independent
+  await Promise.all(data.actions.map(async (action) => {
     if (action.status === "rejected") {
-      // Delete rejected actions and their links
-      await supabase.from("action_push_links").delete().eq("action_id", action.id);
-      await supabase.from("action_objective_links").delete().eq("action_id", action.id);
-      await supabase.from("actions").delete().eq("id", action.id);
-
-      // Update event status
-      await supabase
-        .from("events")
-        .update({ status: "rejected" })
-        .eq("event_type", "action_proposed")
-        .eq("payload->>action_id", action.id);
+      // Delete links in parallel, then delete the action itself
+      await Promise.all([
+        supabase.from("action_push_links").delete().eq("action_id", action.id),
+        supabase.from("action_objective_links").delete().eq("action_id", action.id),
+      ]);
+      await Promise.all([
+        supabase.from("actions").delete().eq("id", action.id),
+        supabase.from("events")
+          .update({ status: "rejected" })
+          .eq("event_type", "action_proposed")
+          .eq("payload->>action_id", action.id),
+      ]);
     } else {
-      // Update accepted/edited actions
-      await supabase
-        .from("actions")
-        .update({
+      // Update action + replace links in parallel
+      await Promise.all([
+        supabase.from("actions").update({
           description: action.description,
           needle_score: action.needle_score,
           status: action.status,
-        })
-        .eq("id", action.id);
+        }).eq("id", action.id),
+        supabase.from("action_push_links").delete().eq("action_id", action.id),
+        supabase.from("action_objective_links").delete().eq("action_id", action.id),
+      ]);
 
-      // Replace push links
-      await supabase.from("action_push_links").delete().eq("action_id", action.id);
+      // Insert new links + update event in parallel
+      const insertOps: PromiseLike<unknown>[] = [];
       if (action.push_ids.length > 0) {
-        await supabase.from("action_push_links").insert(
+        insertOps.push(supabase.from("action_push_links").insert(
           action.push_ids.map((push_id) => ({ action_id: action.id, push_id }))
-        );
+        ));
       }
-
-      // Replace objective links
-      await supabase.from("action_objective_links").delete().eq("action_id", action.id);
       if (action.objective_ids.length > 0) {
-        await supabase.from("action_objective_links").insert(
-          action.objective_ids.map((objective_id) => ({
-            action_id: action.id,
-            objective_id,
-          }))
-        );
+        insertOps.push(supabase.from("action_objective_links").insert(
+          action.objective_ids.map((objective_id) => ({ action_id: action.id, objective_id }))
+        ));
       }
-
-      // Update event status
-      await supabase
-        .from("events")
-        .update({ status: "approved" })
-        .eq("event_type", "action_proposed")
-        .eq("payload->>action_id", action.id);
+      insertOps.push(
+        supabase.from("events")
+          .update({ status: "approved" })
+          .eq("event_type", "action_proposed")
+          .eq("payload->>action_id", action.id)
+      );
+      await Promise.all(insertOps);
     }
-  }
+  }));
 
   // Unlock the dashboard
   // Use effectiveLockDate: if unlocking before 10 PM (catch-up), this is yesterday
@@ -493,8 +496,10 @@ export async function finalizeActions(data: {
 export async function deleteAction(id: string) {
   const supabase = await createServerSupabaseClient();
 
-  await supabase.from("action_push_links").delete().eq("action_id", id);
-  await supabase.from("action_objective_links").delete().eq("action_id", id);
+  await Promise.all([
+    supabase.from("action_push_links").delete().eq("action_id", id),
+    supabase.from("action_objective_links").delete().eq("action_id", id),
+  ]);
 
   const { error } = await supabase.from("actions").delete().eq("id", id);
   if (error) throw new Error(error.message);
@@ -519,17 +524,22 @@ export async function recomputeObjectiveMetrics() {
   const ninetyDaysAgo = new Date();
   ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - METRICS_WINDOW_DAYS);
 
-  // Get all actions from the last 90 days with their objective links
-  const { data: actionLinks } = await supabase
-    .from("action_objective_links")
-    .select("action_id, objective_id, actions!inner(needle_score, created_at)")
-    .gte("actions.created_at", ninetyDaysAgo.toISOString());
-
-  const { data: totalActions } = await supabase
-    .from("actions")
-    .select("id")
-    .in("status", ["accepted", "edited"])
-    .gte("created_at", ninetyDaysAgo.toISOString());
+  // Fetch action links, total actions, and active objectives in parallel
+  const [{ data: actionLinks }, { data: totalActions }, { data: activeObjectives }] = await Promise.all([
+    supabase
+      .from("action_objective_links")
+      .select("action_id, objective_id, actions!inner(needle_score, created_at)")
+      .gte("actions.created_at", ninetyDaysAgo.toISOString()),
+    supabase
+      .from("actions")
+      .select("id")
+      .in("status", ["accepted", "edited"])
+      .gte("created_at", ninetyDaysAgo.toISOString()),
+    supabase
+      .from("objectives")
+      .select("id")
+      .eq("status", "active"),
+  ]);
 
   const totalCount = totalActions?.length || 1; // avoid division by zero
 
@@ -546,24 +556,17 @@ export async function recomputeObjectiveMetrics() {
     }
   }
 
-  // Update each objective
-  const { data: activeObjectives } = await supabase
-    .from("objectives")
-    .select("id")
-    .eq("status", "active");
-
-  for (const obj of activeObjectives ?? []) {
+  // Update all objectives in parallel
+  await Promise.all((activeObjectives ?? []).map((obj) => {
     const data = objectiveData[obj.id];
     const priority = data ? Math.round((data.count / totalCount) * 100) : 0;
-    const needleMovement = data?.scores.length
-      ? median(data.scores)
-      : 0;
+    const needleMovement = data?.scores.length ? median(data.scores) : 0;
 
-    await supabase
+    return supabase
       .from("objectives")
       .update({ current_priority: priority, needle_movement: needleMovement })
       .eq("id", obj.id);
-  }
+  }));
 }
 
 function median(values: number[]): number {
