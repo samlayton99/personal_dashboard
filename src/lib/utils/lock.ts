@@ -1,4 +1,4 @@
-const LOCK_HOUR = 22; // 10 PM
+import { LOCK_HOUR } from "@/lib/constants";
 
 /** Returns today's date as YYYY-MM-DD in the user's local timezone. */
 export function getLocalDateString(): string {

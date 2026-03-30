@@ -1,4 +1,5 @@
 import type { ModelConfig } from "./loader";
+import { LLM_MAX_TOKENS, DEFAULT_CLAUDE_MODEL, DEFAULT_OPENAI_MODEL, ANTHROPIC_API_VERSION } from "@/lib/constants";
 
 type LLMProvider = "claude" | "openai";
 
@@ -19,13 +20,13 @@ export async function callLLM(
 
   if (provider === "claude") {
     return callClaude(system, user, {
-      model: model?.claude_model ?? "claude-sonnet-4-20250514",
-      max_tokens: model?.max_tokens ?? 2048,
+      model: model?.claude_model ?? DEFAULT_CLAUDE_MODEL,
+      max_tokens: model?.max_tokens ?? LLM_MAX_TOKENS,
     });
   }
   return callOpenAI(system, user, {
-    model: model?.openai_model ?? "gpt-4o",
-    max_tokens: model?.max_tokens ?? 2048,
+    model: model?.openai_model ?? DEFAULT_OPENAI_MODEL,
+    max_tokens: model?.max_tokens ?? LLM_MAX_TOKENS,
   });
 }
 
@@ -42,7 +43,7 @@ async function callClaude(
     headers: {
       "Content-Type": "application/json",
       "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
+      "anthropic-version": ANTHROPIC_API_VERSION,
     },
     body: JSON.stringify({
       model: opts.model,

@@ -1,5 +1,6 @@
 "use server";
 
+import { MAX_ACTIVE_PUSHES, TODO_FUTURE_THRESHOLD_DAYS, DEFAULT_TODO_PRIORITY, REFLECTION_ESCAPE_HATCH_LENGTH, METRICS_WINDOW_DAYS } from "@/lib/constants";
 import { createClient } from "@/lib/supabase/server";
 
 // ============================================================
@@ -148,7 +149,7 @@ export async function createTodo(data: {
     const target = new Date(data.due_date);
     const now = new Date();
     const diffDays = (target.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
-    if (diffDays > 4) panel = "future";
+    if (diffDays > TODO_FUTURE_THRESHOLD_DAYS) panel = "future";
   }
 
   const { data: maxOrder } = await supabase
@@ -164,7 +165,7 @@ export async function createTodo(data: {
     description: data.description,
     panel,
     push_id: data.push_id ?? null,
-    priority: data.priority ?? 5,
+    priority: data.priority ?? DEFAULT_TODO_PRIORITY,
     due_date: data.due_date ?? null,
     sort_order: (maxOrder?.sort_order ?? -1) + 1,
     source: "manual",
@@ -241,7 +242,7 @@ export async function createPush(data: {
     .select("id", { count: "exact", head: true })
     .eq("status", "active");
 
-  if ((count ?? 0) >= 5) {
+  if ((count ?? 0) >= MAX_ACTIVE_PUSHES) {
     return { error: "Maximum 5 active pushes allowed" };
   }
 
@@ -369,7 +370,7 @@ export async function createReflection(data: {
       raw_text: data.raw_text,
       date: data.date,
       covers_since: data.covers_since,
-      is_escape_hatch: data.raw_text.length < 50,
+      is_escape_hatch: data.raw_text.length < REFLECTION_ESCAPE_HATCH_LENGTH,
     })
     .select("id")
     .single();
@@ -382,7 +383,7 @@ export async function createReflection(data: {
         .update({
           raw_text: data.raw_text,
           covers_since: data.covers_since,
-          is_escape_hatch: data.raw_text.length < 50,
+          is_escape_hatch: data.raw_text.length < REFLECTION_ESCAPE_HATCH_LENGTH,
         })
         .eq("date", data.date)
         .select("id")
@@ -515,7 +516,7 @@ export async function recomputeObjectiveMetrics() {
   const supabase = await createClient();
 
   const ninetyDaysAgo = new Date();
-  ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+  ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - METRICS_WINDOW_DAYS);
 
   // Get all actions from the last 90 days with their objective links
   const { data: actionLinks } = await supabase

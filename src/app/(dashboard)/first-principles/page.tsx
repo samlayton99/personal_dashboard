@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { METRICS_WINDOW_DAYS, ACTION_DISTRIBUTION_DAYS, FEATURED_ACTIONS_PER_GROUP } from "@/lib/constants";
 import { getSystemState } from "@/lib/supabase/cached-queries";
 import { computeFeaturedActionScore } from "@/lib/utils/scoring";
 import { recomputeObjectiveMetrics } from "./actions";
@@ -11,7 +12,7 @@ export default async function FirstPrinciplesPage() {
   const supabase = await createClient();
 
   const ninetyDaysAgo = new Date();
-  ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+  ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - METRICS_WINDOW_DAYS);
 
   // Recompute objective metrics in parallel with data fetching
   // to ensure priority/needle scores stay fresh
@@ -75,7 +76,7 @@ export default async function FirstPrinciplesPage() {
   const actionPushLinks = actionPushLinksRes.data ?? [];
 
   const twentyOneDaysAgo = new Date();
-  twentyOneDaysAgo.setDate(twentyOneDaysAgo.getDate() - 21);
+  twentyOneDaysAgo.setDate(twentyOneDaysAgo.getDate() - ACTION_DISTRIBUTION_DAYS);
   const threeWeekActionIds = new Set(
     recentActions
       .filter((a) => new Date(a.created_at) >= twentyOneDaysAgo)
@@ -165,7 +166,7 @@ export default async function FirstPrinciplesPage() {
   for (const objId of Object.keys(objectiveFeaturedActions)) {
     objectiveFeaturedActions[objId] = objectiveFeaturedActions[objId]
       .sort((a, b) => b.score - a.score)
-      .slice(0, 2);
+      .slice(0, FEATURED_ACTIONS_PER_GROUP);
   }
 
   // Group by push, take top 2
@@ -179,7 +180,7 @@ export default async function FirstPrinciplesPage() {
   for (const pushId of Object.keys(pushFeaturedActions)) {
     pushFeaturedActions[pushId] = pushFeaturedActions[pushId]
       .sort((a, b) => b.score - a.score)
-      .slice(0, 2);
+      .slice(0, FEATURED_ACTIONS_PER_GROUP);
   }
 
   return (
