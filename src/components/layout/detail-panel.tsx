@@ -8,9 +8,10 @@ interface DetailPanelProps {
   onClose: () => void;
   title: string;
   children: React.ReactNode;
+  bannerColor?: string;
 }
 
-export function DetailPanel({ open, onClose, title, children }: DetailPanelProps) {
+export function DetailPanel({ open, onClose, title, children, bannerColor }: DetailPanelProps) {
   const cardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -33,7 +34,10 @@ export function DetailPanel({ open, onClose, title, children }: DetailPanelProps
       ref={cardRef}
       className="absolute inset-0 z-20 flex flex-col rounded-lg border bg-card shadow-lg"
     >
-      <div className="flex h-10 shrink-0 items-center justify-between rounded-t-lg bg-primary px-4">
+      <div
+        className="flex h-10 shrink-0 items-center justify-between rounded-t-lg px-4"
+        style={{ backgroundColor: bannerColor ?? "var(--primary)" }}
+      >
         <h2 className="text-sm font-semibold text-primary-foreground">{title}</h2>
         <button
           onClick={onClose}

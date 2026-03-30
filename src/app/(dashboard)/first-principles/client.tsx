@@ -13,7 +13,7 @@ import { ActionDetailDialog } from "@/components/actions/action-detail-dialog";
 import { useRealtime } from "@/lib/supabase/use-realtime";
 import type { Database } from "@/types/database";
 import type { FeaturedAction } from "@/types/featured-actions";
-import type { PushActionSlice } from "@/components/pushes/push-distribution-chart";
+import { CHART_COLORS, type PushActionSlice } from "@/components/pushes/push-distribution-chart";
 
 type Objective = Database["public"]["Tables"]["objectives"]["Row"];
 type Tag = Database["public"]["Tables"]["tags"]["Row"];
@@ -189,20 +189,28 @@ export function FirstPrinciplesClient({
           </Link>
 
           {/* Push detail overlays the todos panel */}
-          {selectedPushId && (
-            <PushDetail
-              push={selectedPush}
-              open={selectedPushId !== null}
-              onClose={() => {
-                lastClosedRef.current = { id: selectedPushId!, time: Date.now() };
-                setSelectedPushId(null);
-              }}
-              onSaved={handlePushSaved}
-              onDeleted={handlePushDeleted}
-              allObjectives={objectives}
-              linkedObjectiveIds={selectedPushId ? (pushObjectiveMap[selectedPushId] ?? []) : []}
-            />
-          )}
+          {selectedPushId && (() => {
+            const activeSorted = pushes
+              .filter((p) => p.status === "active")
+              .sort((a, b) => a.sort_order - b.sort_order);
+            const pushIndex = activeSorted.findIndex((p) => p.id === selectedPushId);
+            const pushColor = pushIndex >= 0 ? CHART_COLORS[pushIndex % CHART_COLORS.length] : undefined;
+            return (
+              <PushDetail
+                push={selectedPush}
+                open={selectedPushId !== null}
+                onClose={() => {
+                  lastClosedRef.current = { id: selectedPushId!, time: Date.now() };
+                  setSelectedPushId(null);
+                }}
+                onSaved={handlePushSaved}
+                onDeleted={handlePushDeleted}
+                allObjectives={objectives}
+                linkedObjectiveIds={selectedPushId ? (pushObjectiveMap[selectedPushId] ?? []) : []}
+                color={pushColor}
+              />
+            );
+          })()}
         </div>
 
         {/* Pushes panel */}

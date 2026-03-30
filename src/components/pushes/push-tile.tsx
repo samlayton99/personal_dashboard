@@ -1,5 +1,7 @@
 "use client";
 
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { Database } from "@/types/database";
@@ -26,26 +28,53 @@ export function PushTile({
   onFeaturedActionClick,
   color,
 }: PushTileProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: push.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
   return (
     <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
       className={cn(
-        "relative flex h-full cursor-pointer flex-col rounded-lg border transition-all",
+        "relative flex h-full cursor-grab flex-col overflow-hidden rounded-lg border transition-all",
+        isDragging && "z-50 opacity-80 shadow-lg",
         isSelected
-          ? "ring-1"
-          : "hover:bg-accent/50"
+          ? "border-primary bg-primary/5 ring-1 ring-primary/20"
+          : "bg-card hover:bg-accent/50 hover:border-border/80"
       )}
-      style={color ? {
-        borderColor: isSelected ? color : `${color}50`,
-        backgroundColor: isSelected ? `${color}0a` : undefined,
-        ...(isSelected ? { boxShadow: `0 0 0 1px ${color}33` } : {}),
-      } : undefined}
       onClick={onClick}
     >
+      {color && (
+        <div
+          className="flex h-6 shrink-0 items-center justify-center"
+          style={{ backgroundColor: color }}
+        >
+          <span className="truncate rounded-full bg-white px-2.5 py-0.5 text-xs font-semibold leading-none text-foreground">
+            {push.name}
+          </span>
+        </div>
+      )}
+
       <div className="flex-1 p-3">
-        <p className="truncate text-sm font-medium leading-tight">{push.name}</p>
+        {!color && (
+          <p className="truncate text-sm font-medium leading-tight">{push.name}</p>
+        )}
 
         {featuredActions.length > 0 && (
-          <div className="mt-1.5 space-y-0.5">
+          <div className={cn("space-y-0.5", color ? "" : "mt-1.5")}>
             {featuredActions.map((action) => (
               <button
                 key={action.id}

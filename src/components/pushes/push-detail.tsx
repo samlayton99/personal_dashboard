@@ -26,6 +26,7 @@ interface PushDetailProps {
   onDeleted?: (id: string) => void;
   allObjectives: Objective[];
   linkedObjectiveIds: string[];
+  color?: string;
 }
 
 export function PushDetail({
@@ -36,6 +37,7 @@ export function PushDetail({
   onDeleted,
   allObjectives,
   linkedObjectiveIds,
+  color,
 }: PushDetailProps) {
   const [isPending, startTransition] = useTransition();
   const [name, setName] = useState("");
@@ -105,7 +107,7 @@ export function PushDetail({
   }
 
   return (
-    <DetailPanel open={open} onClose={saveAndClose} title="Edit Push">
+    <DetailPanel open={open} onClose={saveAndClose} title="Edit Push" bannerColor={color}>
       <div className="space-y-4">
         <div>
           <label className="text-xs font-medium text-muted-foreground">Name</label>

@@ -2,7 +2,7 @@
 
 import { MAX_ACTIVE_PUSHES, TODO_FUTURE_THRESHOLD_DAYS, DEFAULT_TODO_PRIORITY, REFLECTION_ESCAPE_HATCH_LENGTH, METRICS_WINDOW_DAYS } from "@/lib/constants";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { createTempId, isTempId } from "@/lib/utils/temp-id";
+import { isTempId } from "@/lib/utils/temp-id";
 
 // ============================================================
 // OBJECTIVES
@@ -16,11 +16,12 @@ export async function createObjective(data: {
   other_notes?: string;
 }) {
   const supabase = await createServerSupabaseClient();
-  const id = createTempId("objective");
+  const id = crypto.randomUUID();
 
   const { data: maxOrder } = await supabase
     .from("objectives")
     .select("sort_order")
+    .eq("status", "active")
     .order("sort_order", { ascending: false })
     .limit(1)
     .single();
@@ -237,7 +238,7 @@ export async function createPush(data: {
   description?: string;
   todos_notes?: string;
   notes?: string;
-}): Promise<string> {
+}): Promise<{ id: string; sort_order: number }> {
   const supabase = await createServerSupabaseClient();
 
   const { count } = await supabase
@@ -252,10 +253,12 @@ export async function createPush(data: {
   const { data: maxOrder } = await supabase
     .from("pushes")
     .select("sort_order")
+    .eq("status", "active")
     .order("sort_order", { ascending: false })
     .limit(1)
     .single();
 
+  const sortOrder = (maxOrder?.sort_order ?? -1) + 1;
   const id = crypto.randomUUID();
   const { error } = await supabase.from("pushes").insert({
     id,
@@ -263,11 +266,11 @@ export async function createPush(data: {
     description: data.description ?? null,
     todos_notes: data.todos_notes ?? null,
     notes: data.notes ?? null,
-    sort_order: (maxOrder?.sort_order ?? -1) + 1,
+    sort_order: sortOrder,
   });
 
   if (error) throw new Error(error.message);
-  return id;
+  return { id, sort_order: sortOrder };
 }
 
 export async function updatePush(
@@ -342,6 +345,17 @@ export async function deletePush(id: string) {
 
   const { error } = await supabase.from("pushes").delete().eq("id", id);
   if (error) throw new Error(error.message);
+}
+
+export async function reorderPushes(orderedIds: string[]) {
+  const realIds = orderedIds.filter((id) => !isTempId(id));
+  if (realIds.length === 0) return;
+  const supabase = await createServerSupabaseClient();
+  await Promise.all(
+    realIds.map((id, index) =>
+      supabase.from("pushes").update({ sort_order: index }).eq("id", id)
+    )
+  );
 }
 
 export async function updatePushObjectives(pushId: string, objectiveIds: string[]) {
