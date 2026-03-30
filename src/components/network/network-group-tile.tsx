@@ -30,6 +30,7 @@ import {
 import { useRealtime } from "@/lib/supabase/use-realtime";
 import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
+import { createTempId, isTempId } from "@/lib/utils/temp-id";
 
 type NetworkContact = Database["public"]["Tables"]["network_contacts"]["Row"];
 type NetworkMeeting = Database["public"]["Tables"]["network_meetings"]["Row"];
@@ -100,7 +101,7 @@ export function NetworkGroupTile({
             if (prev.some((c) => c.id === newContact.id)) return prev;
             const matchIdx = prev.findIndex(
               (c) =>
-                c.id.startsWith("temp_") &&
+                isTempId(c.id) &&
                 c.name === newContact.name &&
                 c.section === newContact.section
             );
@@ -149,7 +150,7 @@ export function NetworkGroupTile({
   });
 
   function handleAdd(name: string, section: NetworkSection) {
-    const tempId = `temp_${Date.now()}`;
+    const tempId = createTempId("contact");
     pendingCreatesRef.current.set(tempId, name);
     const newContact: NetworkContact = {
       id: tempId,

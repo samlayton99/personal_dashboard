@@ -28,6 +28,7 @@ import {
 import { useRealtime } from "@/lib/supabase/use-realtime";
 import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
+import { createTempId, isTempId } from "@/lib/utils/temp-id";
 
 type NetworkGroup = Database["public"]["Tables"]["network_groups"]["Row"];
 type NetworkContact = Database["public"]["Tables"]["network_contacts"]["Row"];
@@ -64,7 +65,7 @@ export function NetworkPanel({
           setGroups((prev) => {
             if (prev.some((g) => g.id === newGroup.id)) return prev;
             const matchIdx = prev.findIndex(
-              (g) => g.id.startsWith("temp_") && g.name === newGroup.name
+              (g) => isTempId(g.id) && g.name === newGroup.name
             );
             if (matchIdx !== -1) {
               return prev.map((g, i) => (i === matchIdx ? newGroup : g));
@@ -91,7 +92,7 @@ export function NetworkPanel({
     const name = newGroupName.trim();
     if (!name) return;
 
-    const tempId = `temp_${Date.now()}`;
+    const tempId = createTempId("group");
     const newGroup: NetworkGroup = {
       id: tempId,
       name,

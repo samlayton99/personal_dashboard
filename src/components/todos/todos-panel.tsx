@@ -25,6 +25,7 @@ import {
 import { useRealtime } from "@/lib/supabase/use-realtime";
 import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
+import { createTempId, isTempId } from "@/lib/utils/temp-id";
 
 type Todo = Database["public"]["Tables"]["todos"]["Row"];
 type Panel = Database["public"]["Enums"]["todo_panel"];
@@ -50,7 +51,7 @@ export function TodosPanel({ initialTodos }: TodosPanelProps) {
       // Merge: use server data but preserve optimistic deletes and pending creates
       const merged = initialTodos.filter((t) => !pendingDeletesRef.current.has(t.id));
       // Re-add any temp todos that haven't been resolved yet
-      const tempTodos = prev.filter((t) => t.id.startsWith("temp_"));
+      const tempTodos = prev.filter((t) => isTempId(t.id));
       for (const temp of tempTodos) {
         if (!merged.some((t) => t.id === temp.id)) {
           merged.push(temp);
@@ -86,7 +87,7 @@ export function TodosPanel({ initialTodos }: TodosPanelProps) {
             if (prev.some((t) => t.id === newTodo.id)) return prev;
             // Check if this INSERT matches a pending optimistic create (temp_ todo)
             const matchIdx = prev.findIndex(
-              (t) => t.id.startsWith("temp_") && t.description === newTodo.description && t.panel === newTodo.panel
+              (t) => isTempId(t.id) && t.description === newTodo.description && t.panel === newTodo.panel
             );
             if (matchIdx !== -1) {
               // Swap the temp todo for the real one from the server
@@ -141,7 +142,7 @@ export function TodosPanel({ initialTodos }: TodosPanelProps) {
   }
 
   function handleAdd(description: string, panel: Panel) {
-    const tempId = `temp_${Date.now()}`;
+    const tempId = createTempId("todo");
     pendingCreatesRef.current.set(tempId, description);
     const newTodo: Todo = {
       id: tempId,

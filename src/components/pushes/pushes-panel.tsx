@@ -6,6 +6,7 @@ import { PushTile } from "./push-tile";
 import { createPush } from "@/app/(dashboard)/first-principles/actions";
 import type { Database } from "@/types/database";
 import type { FeaturedAction } from "@/types/featured-actions";
+import { createTempId, isTempId } from "@/lib/utils/temp-id";
 
 type Push = Database["public"]["Tables"]["pushes"]["Row"];
 
@@ -43,7 +44,7 @@ export function PushesPanel({
     if (activePushes.length >= 5 || isPending || creatingRef.current) return;
     creatingRef.current = true;
 
-    const tempId = `push_temp_${Date.now()}`;
+    const tempId = createTempId("push");
     const newPush: Push = {
       id: tempId,
       name: "New Push",
@@ -100,7 +101,7 @@ export function PushesPanel({
               }
               onClick={() => {
                 // Don't open detail for temp items still being created
-                if (push.id.startsWith("push_temp_")) return;
+                if (isTempId(push.id)) return;
                 onSelect(push.id);
               }}
               featuredActions={featuredActions[push.id]}
