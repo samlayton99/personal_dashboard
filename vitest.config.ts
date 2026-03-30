@@ -4,6 +4,7 @@ import path from "path";
 export default defineConfig({
   test: {
     globals: true,
+    environment: "jsdom",
     passWithNoTests: true,
     exclude: [
       "src/lib/__tests__/phase2.test.ts",
