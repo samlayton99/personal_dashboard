@@ -138,6 +138,10 @@ export function TodosPanel({ initialTodos }: TodosPanelProps) {
   function handleAdd(description: string, panel: Panel) {
     const tempId = createTempId("todo");
     pendingCreatesRef.current.set(tempId, description);
+    const panelTodos = todos.filter((t) => t.panel === panel && !t.is_completed);
+    const maxSortOrder = panelTodos.length > 0
+      ? Math.max(...panelTodos.map((t) => t.sort_order))
+      : -1;
     const newTodo: Todo = {
       id: tempId,
       description,
@@ -147,7 +151,7 @@ export function TodosPanel({ initialTodos }: TodosPanelProps) {
       panel,
       is_completed: false,
       due_date: null,
-      sort_order: todos.filter((t) => t.panel === panel).length,
+      sort_order: maxSortOrder + 1,
       date_added: new Date().toISOString(),
       date_completed: null,
     };

@@ -1,6 +1,7 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { METRICS_WINDOW_DAYS, ACTION_DISTRIBUTION_DAYS, FEATURED_ACTIONS_PER_GROUP } from "@/lib/constants";
 import { getSystemState } from "@/lib/supabase/cached-queries";
+import { getLastLockBoundary } from "@/lib/utils/lock";
 import { computeFeaturedActionScore } from "@/lib/utils/scoring";
 import { recomputeObjectiveMetrics } from "./actions";
 import { FirstPrinciplesClient } from "./client";
@@ -42,7 +43,7 @@ export default async function FirstPrinciplesPage() {
     supabase
       .from("todos")
       .select("*")
-      .eq("is_completed", false)
+      .or(`is_completed.eq.false,date_completed.gte.${getLastLockBoundary()}`)
       .order("sort_order"),
     supabase
       .from("pushes")

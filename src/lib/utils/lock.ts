@@ -1,5 +1,20 @@
 import { LOCK_HOUR } from "@/lib/constants";
 
+/**
+ * Returns the most recent 10 PM boundary as an ISO string.
+ * If it's currently 11 PM Tuesday → Tuesday 10 PM.
+ * If it's currently 3 PM Tuesday → Monday 10 PM.
+ */
+export function getLastLockBoundary(): string {
+  const now = new Date();
+  const boundary = new Date(now);
+  boundary.setHours(LOCK_HOUR, 0, 0, 0);
+  if (now < boundary) {
+    boundary.setDate(boundary.getDate() - 1);
+  }
+  return boundary.toISOString();
+}
+
 /** Returns today's date as YYYY-MM-DD in the user's local timezone. */
 export function getLocalDateString(): string {
   const now = new Date();

@@ -51,7 +51,7 @@ export function PushDistributionChart({ slices }: PushDistributionChartProps) {
   let angleOffset = 0;
   for (const seg of segments) {
     const arcAngle = (seg.pct / 100) * 360;
-    const midAngle = angleOffset + arcAngle / 2 - 90;
+    const midAngle = angleOffset + arcAngle / 2;
     const midRad = (midAngle * Math.PI) / 180;
     labels.push({
       x: cx + r * Math.cos(midRad),
