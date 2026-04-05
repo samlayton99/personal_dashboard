@@ -46,17 +46,29 @@ export function getEffectiveReflectionDate(): string {
 }
 
 /**
- * Returns true if the lock should be TRIGGERED for the first time today:
- * - Current local time is >= 10 PM, AND
- * - lastReflectionDate is before today (or null)
+ * Returns true if the lock should be TRIGGERED for the first time today.
  *
- * This is only for deciding when to initially set is_locked=true.
- * Once locked, the lock persists indefinitely until the reflection
- * flow explicitly unlocks it — this function is NOT consulted for that.
+ * Two cases:
+ * 1. Catch-up: if lastReflectionDate is more than 1 day behind today (i.e. a
+ *    whole night was missed — dashboard wasn't open at 10 PM), trigger the
+ *    lock on next page load regardless of current hour.
+ * 2. Normal: on the same day the reflection is due, only trigger after 10 PM.
+ *
+ * This is only for deciding when to initially set is_locked=true. Once locked,
+ * the lock persists indefinitely until the reflection flow explicitly unlocks
+ * it — this function is NOT consulted for that.
  */
 export function shouldTriggerLock(lastReflectionDate: string | null): boolean {
+  if (!lastReflectionDate) return true;
+
+  const today = getLocalDateString();
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  // Missed a full night — lock immediately, any hour
+  if (lastReflectionDate < formatLocalDate(yesterday)) return true;
+
+  // Same-day case: only after 10 PM
   const now = new Date();
   if (now.getHours() < LOCK_HOUR) return false;
-  if (!lastReflectionDate) return true;
-  return lastReflectionDate < getLocalDateString();
+  return lastReflectionDate < today;
 }
