@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useCallback, useRef } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { useRealtime } from "@/lib/supabase/use-realtime";
 import { shouldTriggerLock } from "@/lib/utils/lock";
@@ -25,16 +25,8 @@ export function LockWatcher({
   initialLastReflectionDate,
 }: LockWatcherProps) {
   const router = useRouter();
-  const pathname = usePathname();
   const isLockedRef = useRef(initialIsLocked);
   const lastReflectionDateRef = useRef(initialLastReflectionDate);
-
-  // Redirect to first-principles if locked and on another page
-  const enforceRedirect = useCallback(() => {
-    if (isLockedRef.current && !pathname.startsWith("/first-principles")) {
-      router.push("/first-principles");
-    }
-  }, [pathname, router]);
 
   // Listen for realtime system_state changes
   useRealtime({
@@ -78,44 +70,40 @@ export function LockWatcher({
     verifyLockState();
   }, [router]);
 
-  // Poll every 30 seconds for two things:
-  // 1. Should we trigger a new lock (time-based)?
-  // 2. Is the DB locked (catch any missed realtime updates)?
+  // Poll every 30 seconds. Always reads DB first to prevent stale-ref
+  // redirects (e.g. if a realtime unlock event was missed).
   useEffect(() => {
     async function checkLock() {
       const supabase = createBrowserSupabaseClient();
 
-      // If not currently locked, check if we should trigger
-      if (!isLockedRef.current) {
-        if (shouldTriggerLock(lastReflectionDateRef.current)) {
-          // Time to lock -- write to DB
-          await supabase
-            .from("system_state")
-            .update({ is_locked: true, locked_at: new Date().toISOString() })
-            .eq("id", 1);
+      // Always sync refs from DB — the single source of truth
+      const { data } = await supabase
+        .from("system_state")
+        .select("is_locked, last_reflection_date")
+        .eq("id", 1)
+        .single();
 
-          isLockedRef.current = true;
-          router.push("/first-principles");
-          return;
-        }
+      if (data) {
+        isLockedRef.current = data.is_locked;
+        lastReflectionDateRef.current = data.last_reflection_date;
+      }
 
-        // Also re-check DB in case lock was set externally (edge function, script)
-        const { data } = await supabase
-          .from("system_state")
-          .select("is_locked, last_reflection_date")
-          .eq("id", 1)
-          .single();
-
-        if (data?.is_locked) {
-          isLockedRef.current = true;
-          lastReflectionDateRef.current = data.last_reflection_date;
+      // If DB says locked, enforce redirect
+      if (data?.is_locked) {
+        if (!window.location.pathname.startsWith("/first-principles")) {
           router.push("/first-principles");
         }
         return;
       }
 
-      // Already locked -- just enforce redirect
-      if (!window.location.pathname.startsWith("/first-principles")) {
+      // Not locked — check if we should trigger a new lock
+      if (shouldTriggerLock(lastReflectionDateRef.current)) {
+        await supabase
+          .from("system_state")
+          .update({ is_locked: true, locked_at: new Date().toISOString() })
+          .eq("id", 1);
+
+        isLockedRef.current = true;
         router.push("/first-principles");
       }
     }
@@ -126,11 +114,6 @@ export function LockWatcher({
     const interval = setInterval(checkLock, 30_000);
     return () => clearInterval(interval);
   }, [router]);
-
-  // Enforce redirect whenever pathname changes while locked
-  useEffect(() => {
-    enforceRedirect();
-  }, [enforceRedirect]);
 
   return null;
 }
