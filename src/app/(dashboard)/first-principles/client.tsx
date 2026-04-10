@@ -2,7 +2,6 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { ObjectivesPanel } from "@/components/objectives/objectives-panel";
 import { ObjectiveDetail } from "@/components/objectives/objective-detail";
 import { TodosPanel } from "@/components/todos/todos-panel";
@@ -47,7 +46,6 @@ export function FirstPrinciplesClient({
   objectiveFeaturedActions,
   pushFeaturedActions,
 }: FirstPrinciplesClientProps) {
-  const router = useRouter();
   const [objectives, setObjectives] = useState(initialObjectives);
   const [pushes, setPushes] = useState(initialPushes);
   const [pushObjectiveMap, setPushObjectiveMap] = useState(initialPushObjectiveMap);
@@ -86,8 +84,11 @@ export function FirstPrinciplesClient({
   });
 
   function handleUnlock() {
+    // Local state hides the overlay immediately. The server action already
+    // called revalidatePath("/first-principles") so fresh data will be
+    // fetched on the next navigation. Do NOT call router.refresh() here —
+    // it races with tab-click router.push() and hangs navigation.
     setIsLocked(false);
-    router.refresh();
   }
 
   const selectedObjective = objectives.find((o) => o.id === selectedObjectiveId) ?? null;
