@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { ActionCard } from "./action-card";
+import { createTempId } from "@/lib/utils/temp-id";
 import type { Database } from "@/types/database";
 
 type Push = Database["public"]["Tables"]["pushes"]["Row"];
@@ -59,10 +60,31 @@ export function ActionReview({
     }))
   );
 
+  const [newActionText, setNewActionText] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
   function handleUpdate(updated: ActionData) {
     setActions((prev) =>
       prev.map((a) => (a.id === updated.id ? updated : a))
     );
+  }
+
+  function handleAddAction() {
+    const text = newActionText.trim();
+    if (!text) return;
+    setActions((prev) => [
+      ...prev,
+      {
+        id: createTempId("action"),
+        description: text,
+        needle_score: 5,
+        push_ids: [],
+        objective_ids: [],
+        status: "edited" as ActionStatus,
+      },
+    ]);
+    setNewActionText("");
+    inputRef.current?.focus();
   }
 
   const acceptedCount = actions.filter(
@@ -93,6 +115,27 @@ export function ActionReview({
               onUpdate={handleUpdate}
             />
           ))}
+
+          {/* Add custom action */}
+          <div className="flex gap-2">
+            <input
+              ref={inputRef}
+              type="text"
+              value={newActionText}
+              onChange={(e) => setNewActionText(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") handleAddAction(); }}
+              placeholder="Add your own action..."
+              className="flex-1 rounded-md border px-3 py-1.5 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+            <Button
+              onClick={handleAddAction}
+              disabled={!newActionText.trim()}
+              size="sm"
+              variant="outline"
+            >
+              Add
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -102,12 +145,12 @@ export function ActionReview({
         </div>
         <Button
           onClick={() => onConfirm(actions)}
-          disabled={isConfirming || (actions.length > 0 && acceptedCount === 0)}
+          disabled={isConfirming}
           size="sm"
         >
           {isConfirming
             ? "Saving..."
-            : actions.length === 0
+            : acceptedCount === 0
               ? "Unlock"
               : `Confirm ${acceptedCount} Action${acceptedCount !== 1 ? "s" : ""}`}
         </Button>

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { recomputeObjectiveMetrics } from "@/app/(dashboard)/first-principles/actions";
 import { getLastLockBoundary } from "@/lib/utils/lock";
+import { isTempId } from "@/lib/utils/temp-id";
 
 export async function POST(request: Request) {
   try {
@@ -24,6 +25,8 @@ export async function POST(request: Request) {
     // Process all actions in parallel
     await Promise.all(data.actions.map(async (action) => {
       if (action.status === "rejected") {
+        // Manually added actions that are rejected can be skipped entirely
+        if (isTempId(action.id)) return;
         await Promise.all([
           supabase.from("action_push_links").delete().eq("action_id", action.id),
           supabase.from("action_objective_links").delete().eq("action_id", action.id),
@@ -35,7 +38,34 @@ export async function POST(request: Request) {
             .eq("event_type", "action_proposed")
             .eq("payload->>action_id", action.id),
         ]);
+      } else if (isTempId(action.id)) {
+        // Manually added action -- insert with a real ID
+        const { data: inserted } = await supabase.from("actions").insert({
+          id: crypto.randomUUID(),
+          description: action.description,
+          needle_score: action.needle_score,
+          status: action.status,
+          reflection_id: data.reflectionId,
+          date: data.reflectionDate,
+        }).select("id").single();
+
+        if (!inserted) return;
+
+        // Insert links
+        const linkOps: PromiseLike<unknown>[] = [];
+        if (action.push_ids.length > 0) {
+          linkOps.push(supabase.from("action_push_links").insert(
+            action.push_ids.map((push_id) => ({ action_id: inserted.id, push_id }))
+          ));
+        }
+        if (action.objective_ids.length > 0) {
+          linkOps.push(supabase.from("action_objective_links").insert(
+            action.objective_ids.map((objective_id) => ({ action_id: inserted.id, objective_id }))
+          ));
+        }
+        if (linkOps.length > 0) await Promise.all(linkOps);
       } else {
+        // AI-generated action -- update existing
         await Promise.all([
           supabase.from("actions").update({
             description: action.description,
