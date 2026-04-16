@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { recomputeObjectiveMetrics } from "@/app/(dashboard)/first-principles/actions";
-import { METRICS_WINDOW_DAYS } from "@/lib/constants";
 
 export async function POST(request: Request) {
   try {
@@ -87,8 +86,9 @@ export async function POST(request: Request) {
       status: "executed",
     });
 
-    // Recompute objective metrics
-    await recomputeObjectiveMetrics();
+    // Fire objective metrics recompute in background — don't block the response.
+    // It also runs on every first-principles page load, so it'll catch up.
+    recomputeObjectiveMetrics();
 
     return NextResponse.json({ ok: true });
   } catch (err) {

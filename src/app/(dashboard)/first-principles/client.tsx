@@ -3,6 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import Link from "next/link";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
+import { getLastLockBoundary } from "@/lib/utils/lock";
 import { ObjectivesPanel } from "@/components/objectives/objectives-panel";
 import { ObjectiveDetail } from "@/components/objectives/objective-detail";
 import { TodosPanel } from "@/components/todos/todos-panel";
@@ -50,6 +51,7 @@ export function FirstPrinciplesClient({
   const [objectives, setObjectives] = useState(initialObjectives);
   const [pushes, setPushes] = useState(initialPushes);
   const [pushObjectiveMap, setPushObjectiveMap] = useState(initialPushObjectiveMap);
+  const [todos, setTodos] = useState(initialTodos);
   const [selectedObjectiveId, setSelectedObjectiveId] = useState<string | null>(null);
   const [selectedPushId, setSelectedPushId] = useState<string | null>(null);
   const [selectedFeaturedAction, setSelectedFeaturedAction] = useState<FeaturedAction | null>(null);
@@ -58,6 +60,7 @@ export function FirstPrinciplesClient({
   useEffect(() => { setObjectives(initialObjectives); }, [initialObjectives]);
   useEffect(() => { setPushes(initialPushes); }, [initialPushes]);
   useEffect(() => { setPushObjectiveMap(initialPushObjectiveMap); }, [initialPushObjectiveMap]);
+  useEffect(() => { setTodos(initialTodos); }, [initialTodos]);
   const lastClosedRef = useRef<{ id: string; time: number } | null>(null);
 
   // Lock state
@@ -87,17 +90,25 @@ export function FirstPrinciplesClient({
   async function handleUnlock() {
     setIsLocked(false);
 
-    // Refresh objective data (metrics were recomputed during finalize).
-    // Uses client-side fetch to avoid blocking the Next.js router.
-    // Todos sync via TodosPanel's own realtime subscription.
+    // Refresh objectives (metrics recomputed) and todos (flush completed
+    // ones outside the lock boundary). Client-side fetch keeps the Next.js
+    // router free for immediate tab navigation.
     const supabase = createBrowserSupabaseClient();
-    const { data } = await supabase
-      .from("objectives")
-      .select("*")
-      .eq("status", "active")
-      .order("sort_order");
+    const [objectivesRes, todosRes] = await Promise.all([
+      supabase
+        .from("objectives")
+        .select("*")
+        .eq("status", "active")
+        .order("sort_order"),
+      supabase
+        .from("todos")
+        .select("*")
+        .or(`is_completed.eq.false,date_completed.gte.${getLastLockBoundary()}`)
+        .order("sort_order"),
+    ]);
 
-    if (data) setObjectives(data);
+    if (objectivesRes.data) setObjectives(objectivesRes.data);
+    if (todosRes.data) setTodos(todosRes.data);
   }
 
   const selectedObjective = objectives.find((o) => o.id === selectedObjectiveId) ?? null;
@@ -190,7 +201,7 @@ export function FirstPrinciplesClient({
 
         {/* Todos panel */}
         <div className="relative min-h-0 overflow-hidden rounded-lg border bg-card">
-          <TodosPanel initialTodos={initialTodos} />
+          <TodosPanel initialTodos={todos} />
           <Link
             href="/first-principles/history"
             className="absolute right-3 top-1.5 cursor-pointer text-xs text-white/70 transition-colors hover:text-white"
