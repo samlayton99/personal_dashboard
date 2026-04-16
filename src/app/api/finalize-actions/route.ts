@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { recomputeObjectiveMetrics } from "@/app/(dashboard)/first-principles/actions";
-import { getLastLockBoundary } from "@/lib/utils/lock";
 import { isTempId } from "@/lib/utils/temp-id";
 
 export async function POST(request: Request) {
@@ -120,10 +119,12 @@ export async function POST(request: Request) {
     // Fetch fresh data for the client before returning
     const [objectivesRes, todosRes] = await Promise.all([
       supabase.from("objectives").select("*").eq("status", "active").order("sort_order"),
+      // Only return incomplete todos after unlock — completed ones have been
+      // reflected on and should be flushed from the board.
       supabase
         .from("todos")
         .select("*")
-        .or(`is_completed.eq.false,date_completed.gte.${getLastLockBoundary()}`)
+        .eq("is_completed", false)
         .order("sort_order"),
     ]);
 
