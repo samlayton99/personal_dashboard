@@ -2,6 +2,8 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import Link from "next/link";
+import { createBrowserSupabaseClient } from "@/lib/supabase/client";
+import { getLastLockBoundary } from "@/lib/utils/lock";
 import { ObjectivesPanel } from "@/components/objectives/objectives-panel";
 import { ObjectiveDetail } from "@/components/objectives/objective-detail";
 import { TodosPanel } from "@/components/todos/todos-panel";
@@ -38,7 +40,7 @@ export function FirstPrinciplesClient({
   objectives: initialObjectives,
   tags,
   objectiveTagMap: initialObjectiveTagMap,
-  todos,
+  todos: initialTodos,
   pushes: initialPushes,
   pushObjectiveMap: initialPushObjectiveMap,
   systemState,
@@ -49,14 +51,16 @@ export function FirstPrinciplesClient({
   const [objectives, setObjectives] = useState(initialObjectives);
   const [pushes, setPushes] = useState(initialPushes);
   const [pushObjectiveMap, setPushObjectiveMap] = useState(initialPushObjectiveMap);
+  const [todos, setTodos] = useState(initialTodos);
   const [selectedObjectiveId, setSelectedObjectiveId] = useState<string | null>(null);
   const [selectedPushId, setSelectedPushId] = useState<string | null>(null);
   const [selectedFeaturedAction, setSelectedFeaturedAction] = useState<FeaturedAction | null>(null);
 
-  // Sync local state when server props change (e.g. after router.refresh())
+  // Sync local state when server props change (e.g. after navigation)
   useEffect(() => { setObjectives(initialObjectives); }, [initialObjectives]);
   useEffect(() => { setPushes(initialPushes); }, [initialPushes]);
   useEffect(() => { setPushObjectiveMap(initialPushObjectiveMap); }, [initialPushObjectiveMap]);
+  useEffect(() => { setTodos(initialTodos); }, [initialTodos]);
   const lastClosedRef = useRef<{ id: string; time: number } | null>(null);
 
   // Lock state
@@ -83,12 +87,28 @@ export function FirstPrinciplesClient({
     }, []),
   });
 
-  function handleUnlock() {
-    // Local state hides the overlay immediately. The server action already
-    // called revalidatePath("/first-principles") so fresh data will be
-    // fetched on the next navigation. Do NOT call router.refresh() here —
-    // it races with tab-click router.push() and hangs navigation.
+  async function handleUnlock() {
     setIsLocked(false);
+
+    // Refetch data that changed during reflection (objective metrics, new todos).
+    // Uses client-side Supabase fetch instead of router.refresh() to keep the
+    // Next.js router free for immediate tab navigation.
+    const supabase = createBrowserSupabaseClient();
+    const [objectivesRes, todosRes] = await Promise.all([
+      supabase
+        .from("objectives")
+        .select("*")
+        .eq("status", "active")
+        .order("sort_order"),
+      supabase
+        .from("todos")
+        .select("*")
+        .or(`is_completed.eq.false,date_completed.gte.${getLastLockBoundary()}`)
+        .order("sort_order"),
+    ]);
+
+    if (objectivesRes.data) setObjectives(objectivesRes.data);
+    if (todosRes.data) setTodos(todosRes.data);
   }
 
   const selectedObjective = objectives.find((o) => o.id === selectedObjectiveId) ?? null;

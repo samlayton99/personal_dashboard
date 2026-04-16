@@ -1,6 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { MAX_ACTIVE_PUSHES, TODO_FUTURE_THRESHOLD_DAYS, DEFAULT_TODO_PRIORITY, REFLECTION_ESCAPE_HATCH_LENGTH, METRICS_WINDOW_DAYS } from "@/lib/constants";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { isTempId } from "@/lib/utils/temp-id";
@@ -506,12 +505,6 @@ export async function finalizeActions(data: {
 
   // Recompute objective metrics
   await recomputeObjectiveMetrics();
-
-  // Mark /first-principles stale so the next render fetches fresh data.
-  // Do NOT rely on client router.refresh() here — combining it with a
-  // subsequent router.push() (tab click) races the App Router transition
-  // and can leave tab navigations stuck with the loading bar spinning.
-  revalidatePath("/first-principles");
 }
 
 export async function deleteAction(id: string) {

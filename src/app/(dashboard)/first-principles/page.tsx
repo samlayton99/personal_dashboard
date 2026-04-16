@@ -1,7 +1,7 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { METRICS_WINDOW_DAYS, ACTION_DISTRIBUTION_DAYS, FEATURED_ACTIONS_PER_GROUP } from "@/lib/constants";
 import { getSystemState } from "@/lib/supabase/cached-queries";
-import { getLastLockBoundary, shouldTriggerLock } from "@/lib/utils/lock";
+import { getLastLockBoundary } from "@/lib/utils/lock";
 import { computeFeaturedActionScore } from "@/lib/utils/scoring";
 import { recomputeObjectiveMetrics } from "./actions";
 import { FirstPrinciplesClient } from "./client";
@@ -11,26 +11,6 @@ export const dynamic = "force-dynamic";
 
 export default async function FirstPrinciplesPage() {
   const supabase = await createServerSupabaseClient();
-
-  // Server-side lock trigger: fires even when client JS hasn't hydrated.
-  // Middleware handles this for other routes; this page handles itself
-  // to avoid re-triggering on revalidatePath RSC refetches.
-  // Uses a direct query (not getSystemState) to avoid poisoning the
-  // React cache() that Promise.all reads below.
-  {
-    const { data: lockCheck } = await supabase
-      .from("system_state")
-      .select("is_locked, last_reflection_date")
-      .eq("id", 1)
-      .single();
-
-    if (!lockCheck?.is_locked && shouldTriggerLock(lockCheck?.last_reflection_date ?? null)) {
-      await supabase
-        .from("system_state")
-        .update({ is_locked: true, locked_at: new Date().toISOString() })
-        .eq("id", 1);
-    }
-  }
 
   const ninetyDaysAgo = new Date();
   ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - METRICS_WINDOW_DAYS);

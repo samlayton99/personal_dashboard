@@ -1,6 +1,5 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import { shouldTriggerLock } from "@/lib/utils/lock";
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -55,9 +54,7 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Lock enforcement + trigger for non-first-principles routes.
-  // /first-principles handles its own lock trigger in the page server
-  // component so that revalidatePath RSC refetches can't re-trigger.
+  // Lock check: if dashboard is locked, force user to /first-principles
   const pathname = request.nextUrl.pathname;
   if (
     user &&
@@ -67,26 +64,11 @@ export async function updateSession(request: NextRequest) {
   ) {
     const { data: systemState } = await supabase
       .from("system_state")
-      .select("is_locked, last_reflection_date")
+      .select("is_locked")
       .eq("id", 1)
       .single();
 
-    const isLocked = systemState?.is_locked;
-
-    // Trigger lock if overdue (missed nights, etc.)
-    if (!isLocked && shouldTriggerLock(systemState?.last_reflection_date ?? null)) {
-      await supabase
-        .from("system_state")
-        .update({ is_locked: true, locked_at: new Date().toISOString() })
-        .eq("id", 1);
-
-      const url = request.nextUrl.clone();
-      url.pathname = "/first-principles";
-      return NextResponse.redirect(url);
-    }
-
-    // Already locked — enforce redirect
-    if (isLocked) {
+    if (systemState?.is_locked) {
       const url = request.nextUrl.clone();
       url.pathname = "/first-principles";
       return NextResponse.redirect(url);
