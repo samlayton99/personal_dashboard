@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { shouldTriggerLock } from "@/lib/utils/lock";
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -54,21 +55,38 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Lock check: if dashboard is locked, force user to /first-principles
+  // Lock check + trigger: runs server-side on every navigation so lock
+  // fires even if client JS hasn't hydrated yet.
   const pathname = request.nextUrl.pathname;
   if (
     user &&
-    !pathname.startsWith("/first-principles") &&
     !pathname.startsWith("/login") &&
     !pathname.startsWith("/api")
   ) {
     const { data: systemState } = await supabase
       .from("system_state")
-      .select("is_locked")
+      .select("is_locked, last_reflection_date")
       .eq("id", 1)
       .single();
 
-    if (systemState?.is_locked) {
+    const isLocked = systemState?.is_locked;
+
+    // Trigger lock if overdue (missed nights, etc.)
+    if (!isLocked && shouldTriggerLock(systemState?.last_reflection_date ?? null)) {
+      await supabase
+        .from("system_state")
+        .update({ is_locked: true, locked_at: new Date().toISOString() })
+        .eq("id", 1);
+
+      if (!pathname.startsWith("/first-principles")) {
+        const url = request.nextUrl.clone();
+        url.pathname = "/first-principles";
+        return NextResponse.redirect(url);
+      }
+    }
+
+    // Already locked — enforce redirect
+    if (isLocked && !pathname.startsWith("/first-principles")) {
       const url = request.nextUrl.clone();
       url.pathname = "/first-principles";
       return NextResponse.redirect(url);
