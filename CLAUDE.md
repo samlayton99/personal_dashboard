@@ -26,7 +26,7 @@ The dashboard has two layers:
 - **Data + Display layer**: Next.js app + Supabase. Stores all data, renders all UI, runs scheduled crons via edge functions.
 - **Execution layer**: OpenClaw running locally. Executes agent skills (email triage, todo capture, morning briefs, etc.) and writes results to Supabase via authenticated API routes. The Automations page is a real-time view over all agent activity.
 
-Both layers write to the same `events` table. The dashboard never depends on OpenClaw being online — it degrades gracefully. Cron-based agents (summaries, lock trigger) run as Supabase edge functions, not OpenClaw.
+Both layers write to the same `events` table. The dashboard never depends on OpenClaw being online — it degrades gracefully. Cron-based agents (summaries) run as Supabase edge functions, not OpenClaw. The nightly lock trigger runs client-side via `LockWatcher` (realtime subscription + one-shot `setTimeout` at 10 PM).
 
 ## Project Structure
 
@@ -46,7 +46,8 @@ Both layers write to the same `events` table. The dashboard never depends on Ope
 │   │   │   ├── inbox/
 │   │   │   └── network/
 │   │   ├── api/
-│   │   │   └── agents/    # API routes that OpenClaw and edge functions call
+│   │   │   ├── agents/    # API routes that OpenClaw and edge functions call
+│   │   │   └── finalize-actions/  # Post-reflection unlock (processes actions, returns fresh data)
 │   │   └── login/
 │   ├── components/
 │   │   ├── ui/            # shadcn/ui primitives
@@ -92,6 +93,7 @@ npx supabase gen types typescript --local > src/types/database.ts
 - Components: PascalCase. Files: kebab-case.
 - Agent prompt templates live in `src/lib/agents/`. Never inline prompts.
 - Agent API routes: `/api/agents/[agent-name]`
+- Non-agent API routes (e.g. `/api/finalize-actions`): use `fetch()` from client, NOT server actions. Server actions run inside React transitions which block navigation.
 - Edge functions for scheduled crons: `supabase/functions/`
 - Dates stored as UTC. Displayed in user's local timezone.
 
@@ -103,6 +105,7 @@ npx supabase gen types typescript --local > src/types/database.ts
 - **Date utilities**: `src/lib/utils/dates.ts` for display formatting. `src/lib/utils/lock.ts` for lock-system dates. No duplicate date functions.
 - **Supabase clients**: `src/lib/supabase/client.ts` (browser), `src/lib/supabase/server.ts` (server components/actions), `src/lib/supabase/admin.ts` (service role, server-only).
 - **Error handling in server actions**: Always throw on error. Never return `{ error: string }` -- callers use try/catch.
+- **Lock utilities**: `src/lib/utils/lock.ts` — `shouldTriggerLock`, `getEffectiveReflectionDate`, `getLastLockBoundary`. Tested in `src/lib/__tests__/lock.test.ts`.
 - **Tests**: `vitest` for pure utility tests. Test files at `src/lib/__tests__/*.test.ts`.
 
 ## Database Tables (Summary)
@@ -140,7 +143,8 @@ Read `docs/plan.md` for complete field definitions, relationships, and constrain
 - **Cascade deletes: parallelize link deletions, then delete the entity.** Links are independent of each other but the entity delete must come last.
 - **Page-level data fetches must use `Promise.all()`.** See `first-principles/page.tsx` for the pattern (12 queries in parallel).
 - **Realtime subscriptions**: Subscribe at the highest common ancestor, not per-tile. One channel per table is better than N channels for N tiles.
-- **Middleware**: The `system_state` lock check runs on every navigation. Keep it as a single lightweight query. Don't add more middleware DB queries without caching.
+- **Middleware**: The `system_state` lock check runs on every navigation. It only ENFORCES (redirects if locked), never TRIGGERS (writes `is_locked=true`). Keep it as a single lightweight query. Don't add more middleware DB queries without caching.
+- **Lock system**: Two enforcement paths: (1) middleware redirects on every server request, (2) `LockWatcher` client component reacts via realtime + one-shot `setTimeout` at 10 PM. Do NOT add polling, `revalidatePath`, or `router.refresh()` to the lock/unlock flow — all three have caused navigation-blocking bugs. The finalize-actions API route returns fresh objectives + todos so `handleUnlock` can update state synchronously.
 
 ## Do Not
 

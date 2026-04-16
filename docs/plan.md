@@ -21,7 +21,7 @@ Everything maps upward: to-dos can optionally link to pushes; actions link to pu
 
 The system has two execution layers:
 
-**Dashboard layer** (Next.js + Supabase): Stores all data, renders all UI, runs time-based crons (lock trigger, cascading summaries) via Supabase edge functions. This layer is always available even if OpenClaw is offline.
+**Dashboard layer** (Next.js + Supabase): Stores all data, renders all UI, runs cascading summary crons via Supabase edge functions. The nightly lock trigger runs client-side (`LockWatcher` component: realtime subscription + one-shot `setTimeout` at 10 PM, with catch-up logic for missed nights). This layer is always available even if OpenClaw is offline.
 
 **OpenClaw layer** (local agent): Executes task-oriented skills — email triage, todo capture via text, morning briefs, meeting follow-ups, etc. OpenClaw reads from and writes to Supabase via authenticated API routes (`/api/agents/*`). Every action OpenClaw takes writes an event to the `events` table, making all agent activity visible on the Automations page.
 
@@ -113,7 +113,7 @@ See `docs/future_automations.md` for the full catalog of planned OpenClaw skills
 **Rules**:
 - Items with `due_date` > 4 days from now automatically go to `future` panel.
 - Completed items sink to bottom of their panel list.
-- At end of day (midnight local time), completed items are cleared from the active panels and archived (soft delete: set a `cleared_at` timestamp, or move to a `todos_archive` table).
+- Completed items are visible until the next reflection unlock, at which point they are flushed from the board (the post-unlock API response returns only incomplete todos). The page query also filters: completed items are only shown if `date_completed >= getLastLockBoundary()` (the most recent 10 PM).
 - Users can drag-and-drop between panels, overriding automatic placement.
 - Each panel has an inline text input at the bottom for quick-adding new to-dos.
 
@@ -302,7 +302,7 @@ This is the main dashboard. Layout is a fixed grid (not scrollable page — pane
 - Clicking the circle crosses off the item (strikethrough + moves to bottom of list). Clicking again un-crosses.
 - Drag-and-drop between all three panels.
 - Each panel has a small text input at the bottom for inline quick-add. Just type and hit enter — defaults: panel = the panel it's in, due_date = today (or 5+ days out for future), priority = 5.
-- At end of day, completed items are cleared.
+- Completed items are flushed after the nightly reflection unlock (post-unlock API returns only incomplete todos).
 
 **Pushes panel details**:
 - 6-tile grid. Top-left tile is the **Scoreboard** (reserved slot).
@@ -378,28 +378,31 @@ Future evolution: a relationship tracker backed by a `contacts` table, populated
 
 ### 4.1 Lock Mechanism
 
-1. **Trigger**: Every day at 10:00 PM user's local time, a scheduled function sets `system_state.is_locked = true`.
-2. **Effect**: The entire dashboard blurs/dims. An overlay appears with a text input area and the prompt: "What did you do today?" (or "What have you been up to since [last_reflection_date]?" if multiple days missed).
-3. **Escape hatch**: User can write as little as one sentence. The system still processes it.
-4. **Multi-day gaps**: One reflection covers all missed days. The reflection's `covers_since` field is set to the day after `last_reflection_date`. Missed days are not individually backfilled.
-5. **Unlock**: After the user submits and reviews generated actions, `system_state.is_locked = false` and `last_reflection_date` is updated.
+1. **Trigger**: `LockWatcher` (client-side, in dashboard layout) sets `system_state.is_locked = true` via:
+   - One-shot `setTimeout` at 10 PM local time (normal nightly trigger).
+   - Mount-time check using `shouldTriggerLock()` (catch-up: if `last_reflection_date` is >1 day stale, triggers immediately regardless of hour).
+2. **Enforcement**: Middleware redirects all non-`/first-principles` navigation when locked. `LockWatcher` reacts to realtime `system_state` changes for instant UI response. The lock overlay covers the entire page — zero functionality until unlocked.
+3. **Effect**: An overlay appears with a text input area and the prompt: "What did you do today?" (or "What have you been up to since [last_reflection_date]?" if multiple days missed).
+4. **Escape hatch**: User can write as little as one sentence. The system still processes it.
+5. **Multi-day gaps**: One reflection covers all missed days. The reflection's `covers_since` field is set to the day after `last_reflection_date`. Missed days are not individually backfilled.
+6. **Unlock**: After the user submits and reviews generated actions, `/api/finalize-actions` sets `system_state.is_locked = false`, updates `last_reflection_date` via `getEffectiveReflectionDate()` (before 10 PM = yesterday so tonight's lock still fires; at/after 10 PM = today), and returns fresh objectives + todos in the response.
 
 ### 4.2 Action Generation Flow
 
 1. User submits reflection text.
 2. System writes a `daily_reflections` row.
-3. System calls the action generation agent (Claude API via edge function or API route).
-4. Agent returns 1–5 proposed actions, each with:
+3. System calls the action generation agent (Claude API via `/api/agents/nightly-reflection`).
+4. Agent returns 1-5 proposed actions, each with:
    - description (short text)
    - push mappings (push IDs)
    - objective mappings (objective IDs)
-   - needle_score (0–100)
+   - needle_score (0-100)
 5. Each action is written as an `actions` row with `status = 'pending'`.
 6. Each action also generates an `events` row with `event_type = 'action_proposed'`, `requires_approval = true`.
 7. The overlay transitions to a review screen showing the proposed actions.
-8. User can: accept each action as-is, edit the description/mappings/score, or delete an action.
-9. On confirmation, action statuses update to `accepted` or `edited`. Event statuses update to `approved`.
-10. Dashboard unlocks.
+8. User can: accept each action as-is, edit the description/mappings/score, reject an action, or add custom actions via inline text input.
+9. User can submit with zero accepted actions (all rejected) — the button shows "Unlock".
+10. On confirmation, the client calls `/api/finalize-actions` via `fetch()` (NOT a server action — React transitions from server actions block navigation). The API route processes actions, unlocks, and returns fresh data. `handleUnlock` updates state synchronously — completed todos are flushed, objectives refresh.
 
 ### 4.3 Action Generation Agent — Context Payload
 

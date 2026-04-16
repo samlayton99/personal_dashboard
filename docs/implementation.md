@@ -76,10 +76,10 @@ High-level phased build order. Each phase produces a usable increment. Do not sk
 **Goal**: The core daily loop — lock, reflect, generate actions, review, unlock.
 
 ### Step 2.1 — Lock System
-1. Set up Supabase Realtime subscription on `system_state` table in the dashboard layout.
-2. When `is_locked = true`: render blur overlay + reflection input. No other interaction possible.
-3. Create scheduled edge function (cron) that fires at 10:00 PM and sets `is_locked = true`. Write a `lock_triggered` event.
-4. If `last_reflection_date` < today and current time is past 10 PM, lock on page load too (handles missed crons, page refreshes).
+1. Set up Supabase Realtime subscription on `system_state` table in the dashboard layout (`LockWatcher` component).
+2. When `is_locked = true`: render blur overlay + reflection input on `/first-principles`. No other interaction possible.
+3. `LockWatcher` triggers the lock client-side: one-shot `setTimeout` at 10 PM writes `is_locked = true`. On mount, `shouldTriggerLock()` handles catch-up for missed nights (triggers immediately if >1 day stale, regardless of hour).
+4. Middleware enforces the lock server-side: redirects any non-`/first-principles` navigation to `/first-principles` when locked. Middleware never writes `is_locked` — it only reads and redirects.
 
 ### Step 2.2 — Reflection Submission
 1. Reflection overlay shows: "What did you do today?" (or "What have you been up to since [date]?" if multi-day gap).
@@ -97,16 +97,15 @@ High-level phased build order. Each phase produces a usable increment. Do not sk
 ### Step 2.4 — Action Review UI
 1. After generation, the overlay transitions to show proposed actions.
 2. Each action card: description (editable), push mappings (editable dropdown), objective mappings (editable dropdown), needle_score (editable slider 0-100).
-3. Per-action buttons: Accept, Edit (enables editing), Delete.
-4. "Confirm All" button at the bottom.
-5. On confirm: update action statuses, update event statuses, set `system_state.is_locked = false`, update `last_reflection_date`.
+3. Per-action buttons: Accept, Edit (enables editing), Reject.
+4. Users can add custom actions via an inline text input (no limit).
+5. Users can reject all proposed actions and submit with zero accepted actions.
+6. "Confirm" button at the bottom. On confirm: calls `/api/finalize-actions` via `fetch()` (NOT a server action — server actions block the Next.js router). The API route processes actions, unlocks the dashboard, and returns fresh objectives + todos. The client updates state synchronously from the response.
 
 ### Step 2.5 — Computed Fields
-1. After actions are confirmed, trigger recomputation:
-   - `current_priority` for all active objectives.
-   - `needle_movement` for all active objectives.
-   - Scoreboard metrics (streak, actions this week, actions this month).
-2. This can be a Supabase database function or a separate API route called post-confirmation.
+1. After actions are confirmed, the `/api/finalize-actions` route fires `recomputeObjectiveMetrics()` in the background (not awaited — it also runs on every page load).
+2. Metrics recomputed: `current_priority` and `needle_movement` for all active objectives.
+3. Scoreboard metrics (streak, actions this week, actions this month) are computed on page render.
 
 **Deliverable**: Complete daily loop working. Lock → reflect → review actions → unlock. Scoreboard shows real data.
 
