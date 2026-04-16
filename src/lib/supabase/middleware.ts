@@ -55,11 +55,13 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Lock check + trigger: runs server-side on every navigation so lock
-  // fires even if client JS hasn't hydrated yet.
+  // Lock enforcement + trigger for non-first-principles routes.
+  // /first-principles handles its own lock trigger in the page server
+  // component so that revalidatePath RSC refetches can't re-trigger.
   const pathname = request.nextUrl.pathname;
   if (
     user &&
+    !pathname.startsWith("/first-principles") &&
     !pathname.startsWith("/login") &&
     !pathname.startsWith("/api")
   ) {
@@ -78,15 +80,13 @@ export async function updateSession(request: NextRequest) {
         .update({ is_locked: true, locked_at: new Date().toISOString() })
         .eq("id", 1);
 
-      if (!pathname.startsWith("/first-principles")) {
-        const url = request.nextUrl.clone();
-        url.pathname = "/first-principles";
-        return NextResponse.redirect(url);
-      }
+      const url = request.nextUrl.clone();
+      url.pathname = "/first-principles";
+      return NextResponse.redirect(url);
     }
 
     // Already locked — enforce redirect
-    if (isLocked && !pathname.startsWith("/first-principles")) {
+    if (isLocked) {
       const url = request.nextUrl.clone();
       url.pathname = "/first-principles";
       return NextResponse.redirect(url);
