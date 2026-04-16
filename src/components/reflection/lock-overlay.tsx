@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { ReflectionInput } from "./reflection-input";
 import { ActionReview } from "./action-review";
-import { finalizeActions } from "@/app/(dashboard)/first-principles/actions";
 import { getEffectiveReflectionDate } from "@/lib/utils/lock";
 import type { Database } from "@/types/database";
 
@@ -119,12 +118,20 @@ export function LockOverlay({
     setIsConfirming(true);
 
     try {
-      await finalizeActions({
-        reflectionId,
-        reflectionDate,
-        effectiveLockDate: getEffectiveReflectionDate(),
-        actions: finalActions,
+      const res = await fetch("/api/finalize-actions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          reflectionId,
+          reflectionDate,
+          effectiveLockDate: getEffectiveReflectionDate(),
+          actions: finalActions,
+        }),
       });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({ error: "Unknown error" }));
+        throw new Error(body.error ?? `Request failed: ${res.status}`);
+      }
       onUnlock();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save actions");
