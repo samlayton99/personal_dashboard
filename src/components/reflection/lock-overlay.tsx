@@ -8,6 +8,7 @@ import type { Database } from "@/types/database";
 
 type Push = Database["public"]["Tables"]["pushes"]["Row"];
 type Objective = Database["public"]["Tables"]["objectives"]["Row"];
+type Todo = Database["public"]["Tables"]["todos"]["Row"];
 
 interface GeneratedAction {
   id: string;
@@ -24,7 +25,7 @@ interface LockOverlayProps {
   lastReflectionDate: string | null;
   activePushes: Push[];
   activeObjectives: Objective[];
-  onUnlock: () => void;
+  onUnlock: (data: { objectives: Objective[]; todos: Todo[] }) => void;
 }
 
 export function LockOverlay({
@@ -132,7 +133,8 @@ export function LockOverlay({
         const body = await res.json().catch(() => ({ error: "Unknown error" }));
         throw new Error(body.error ?? `Request failed: ${res.status}`);
       }
-      onUnlock();
+      const result = await res.json();
+      onUnlock({ objectives: result.objectives, todos: result.todos });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save actions");
       setIsConfirming(false);

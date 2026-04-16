@@ -2,8 +2,6 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import Link from "next/link";
-import { createBrowserSupabaseClient } from "@/lib/supabase/client";
-import { getLastLockBoundary } from "@/lib/utils/lock";
 import { ObjectivesPanel } from "@/components/objectives/objectives-panel";
 import { ObjectiveDetail } from "@/components/objectives/objective-detail";
 import { TodosPanel } from "@/components/todos/todos-panel";
@@ -63,52 +61,25 @@ export function FirstPrinciplesClient({
   useEffect(() => { setTodos(initialTodos); }, [initialTodos]);
   const lastClosedRef = useRef<{ id: string; time: number } | null>(null);
 
-  // Lock state
-  const [lastReflectionDate, setLastReflectionDate] = useState(
-    systemState?.last_reflection_date ?? null
-  );
+  // Lock state -- syncs from server props and realtime
   const [isLocked, setIsLocked] = useState(systemState?.is_locked ?? false);
+  useEffect(() => { setIsLocked(systemState?.is_locked ?? false); }, [systemState?.is_locked]);
 
-  // Lock-checking interval is handled by LockWatcher in the dashboard layout.
-  // This component only reacts to DB changes via realtime subscription below.
-
-  // Listen for realtime system_state changes (edge function backup)
+  // Listen for realtime lock changes (covers the case where the user is
+  // already on /first-principles when the lock fires at 10 PM)
   useRealtime({
     table: "system_state",
     event: "UPDATE",
     onPayload: useCallback((payload: { new: Record<string, unknown> }) => {
-      const newState = payload.new as unknown as SystemState;
-      if (newState.is_locked) {
-        setIsLocked(true);
-      } else {
-        setIsLocked(false);
-        setLastReflectionDate(newState.last_reflection_date);
-      }
+      const newState = payload.new as { is_locked: boolean };
+      setIsLocked(newState.is_locked);
     }, []),
   });
 
-  async function handleUnlock() {
+  function handleUnlock(data: { objectives: Objective[]; todos: Todo[] }) {
     setIsLocked(false);
-
-    // Refresh objectives (metrics recomputed) and todos (flush completed
-    // ones outside the lock boundary). Client-side fetch keeps the Next.js
-    // router free for immediate tab navigation.
-    const supabase = createBrowserSupabaseClient();
-    const [objectivesRes, todosRes] = await Promise.all([
-      supabase
-        .from("objectives")
-        .select("*")
-        .eq("status", "active")
-        .order("sort_order"),
-      supabase
-        .from("todos")
-        .select("*")
-        .or(`is_completed.eq.false,date_completed.gte.${getLastLockBoundary()}`)
-        .order("sort_order"),
-    ]);
-
-    if (objectivesRes.data) setObjectives(objectivesRes.data);
-    if (todosRes.data) setTodos(todosRes.data);
+    setObjectives(data.objectives);
+    setTodos(data.todos);
   }
 
   const selectedObjective = objectives.find((o) => o.id === selectedObjectiveId) ?? null;
@@ -177,7 +148,7 @@ export function FirstPrinciplesClient({
     <div className="relative grid h-full grid-cols-[33%_1fr] gap-1.5 p-1.5">
       {isLocked && (
         <LockOverlay
-          lastReflectionDate={lastReflectionDate}
+          lastReflectionDate={systemState?.last_reflection_date ?? null}
           activePushes={pushes.filter((p) => p.status === "active")}
           activeObjectives={objectives.filter((o) => o.status === "active")}
           onUnlock={handleUnlock}

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { recomputeObjectiveMetrics } from "@/app/(dashboard)/first-principles/actions";
+import { getLastLockBoundary } from "@/lib/utils/lock";
 
 export async function POST(request: Request) {
   try {
@@ -86,11 +87,25 @@ export async function POST(request: Request) {
       status: "executed",
     });
 
+    // Fetch fresh data for the client before returning
+    const [objectivesRes, todosRes] = await Promise.all([
+      supabase.from("objectives").select("*").eq("status", "active").order("sort_order"),
+      supabase
+        .from("todos")
+        .select("*")
+        .or(`is_completed.eq.false,date_completed.gte.${getLastLockBoundary()}`)
+        .order("sort_order"),
+    ]);
+
     // Fire objective metrics recompute in background — don't block the response.
     // It also runs on every first-principles page load, so it'll catch up.
     recomputeObjectiveMetrics();
 
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({
+      ok: true,
+      objectives: objectivesRes.data ?? [],
+      todos: todosRes.data ?? [],
+    });
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Unknown error" },
